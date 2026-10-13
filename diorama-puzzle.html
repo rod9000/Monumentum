@@ -79,6 +79,47 @@
     color: #ffd34d;
     white-space: nowrap;
   }
+  .contador-moedas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 8px 14px;
+  }
+  .contador-moedas .rotulo {
+    font-size: 9.5px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    opacity: .6;
+    font-weight: 700;
+  }
+  .contador-moedas #contador-moedas { font-size: 22px; line-height: 1.1; }
+
+  /* contador total (todas as fases) */
+  #total-moedas {
+    margin-top: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffd34d;
+    opacity: .9;
+  }
+
+  /* popup "+1" que sobe da moeda coletada */
+  .popup-moeda {
+    position: fixed;
+    z-index: 6;
+    pointer-events: none;
+    font-size: 22px;
+    font-weight: 900;
+    color: #ffd34d;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .55);
+    transform: translate(-50%, -50%);
+    animation: subir-moeda .9s ease-out forwards;
+  }
+  @keyframes subir-moeda {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to   { opacity: 0; transform: translate(-50%, -170%) scale(1.35); }
+  }
 
   .acoes { display: flex; gap: 8px; align-items: center; }
 
@@ -214,9 +255,13 @@
       <div class="cartao">
         <h1>Diorama Puzzle</h1>
         <div id="nome-fase">Carregando…</div>
+        <div id="total-moedas">Total 🪙 0/0</div>
       </div>
       <div class="acoes">
-        <div class="cartao" id="contador-moedas">🪙 0/0</div>
+        <div class="cartao contador-moedas">
+          <span class="rotulo">Moedas</span>
+          <span id="contador-moedas">🪙 0/0</span>
+        </div>
         <div class="grupo-botoes">
           <button id="btn-fase-anterior" title="Fase anterior">◀</button>
           <button id="btn-fase-proxima" title="Próxima fase">▶</button>
@@ -372,7 +417,7 @@
 
 {
         nome: 'Fase 2 — O Salão',
-        moedas: 3, distanciaMoedas: 3, seed: 7,
+        moedas: 3, distanciaMoedas: 3, 
         blocos: [
       /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'chao' },
@@ -441,7 +486,7 @@
 
       {
         nome: 'Fase 3 — A Travessia',
-        moedas: 3, distanciaMoedas: 3, seed: 11,
+        moedas: 3, distanciaMoedas: 3, 
         blocos: [
       /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'spawn' },
@@ -470,7 +515,8 @@
       /* ---- z = 4 ---- */
         { x: 0, y: 0, z: 4, tipo: 'chao' },
         { x: 2, y: 0, z: 4, tipo: 'chao' },
-        { x: 3, y: 0, z: 4, tipo: 'parede' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },    // piso sob a parede
+        { x: 3, y: 1, z: 4, tipo: 'parede' },  // parede elevada (marrom)
         { x: 4, y: 0, z: 4, tipo: 'chao' },
         { x: 5, y: 0, z: 4, tipo: 'chao' },
         { x: 6, y: 0, z: 4, tipo: 'chao' },
@@ -479,7 +525,7 @@
 
       {
         nome: 'Fase 4 — A Escada',
-        moedas: 3, distanciaMoedas: 3, seed: 23,
+        moedas: 3, distanciaMoedas: 3, 
         blocos: [
       /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'chao' },
@@ -564,7 +610,7 @@
 
       {
         nome: 'Fase 5 — O Zigurate',
-        moedas: 4, distanciaMoedas: 2, seed: 31,
+        moedas: 4, distanciaMoedas: 2, 
         blocos: [
       /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'parede' },
@@ -684,10 +730,141 @@
 
 
   /* ============================================================================
+     2.1) ELEVADORES (plataformas móveis)
+     ----------------------------------------------------------------------------
+     Um bloco 'elevador' é uma plataforma que vaiva entre a posição em que foi
+     escrito no mapa (`elev.inicio`) e `elev.para`:
+
+        { x: 4, y: 0, z: 2, tipo: 'elevador',
+          elev: { eixo: 'x', para: { x: 6, y: 0, z: 2 },
+                  velocidade: 1.1, espera: 1.0 } }
+
+     * o personagem só sobe/desce quando ela está PARADA em uma das pontas;
+     * enquanto ela se move, o personagem é carregado junto (e não pode andar);
+     * `eixo` é só informativo (deixa os dados legíveis) — o que vale é `para`.
+     ============================================================================ */
+  const elevadorParado = b => !!b.elev && (b.elev.t === 0 || b.elev.t === 1);
+
+  /** Cópia profunda de um bloco (o `elev` guarda estado que muda a cada frame). */
+  function clonarBloco(b) {
+    const c = { ...b };
+    if (b.elev) c.elev = { ...b.elev, para: { ...b.elev.para } };
+    return c;
+  }
+
+  function iniciarElevador(b) {
+    if (!b.elev) return;
+    const ev = b.elev;
+    ev.inicio = { x: b.x, y: b.y, z: b.z };      // onde ele foi escrito no mapa
+    ev.t = 0;                                    // 0 = na posição inicial
+    ev.dir = 1;                                  // 1 = indo para o destino
+    ev.velocidade = ev.velocidade ?? CONFIG.velocidadeElevador;
+    ev.espera = ev.espera ?? CONFIG.esperaElevador;
+    ev.pausaAtual = ev.espera;                   // começa parado: dá tempo de embarcar
+    ev.avisouParada = true;
+    ev.distancia = Math.abs(ev.para.x - b.x) + Math.abs(ev.para.y - b.y) + Math.abs(ev.para.z - b.z);
+  }
+
+  /** Move um bloco no mundo e reposiciona sua célula na grade. */
+  function moverBloco(b, x, y, z) {
+    grade.mapa.delete(chave(b.x, b.y, b.z));
+    b.x = x; b.y = y; b.z = z;
+    grade.mapa.set(chave(x, y, z), b);
+    if (b.malha) b.malha.position.set(x, y, z);
+  }
+
+  function atualizarElevadores(dt) {
+    for (const e of grade.lista) {
+      if (!e.elev) continue;
+      const ev = e.elev;
+      const estavaParado = elevadorParado(e);
+
+      // parado em uma das pontas: só espera o tempo de embarque
+      if (ev.pausaAtual > 0) {
+        ev.pausaAtual -= dt;
+        if (!ev.avisouParada) {
+          ev.avisouParada = true;
+          if (estado.blocoAtual === e) avisar('🛗 Elevador chegou! Pode descer.');
+        }
+        continue;
+      }
+
+      // avança o trajeto (0 -> 1 -> 0, vaivém)
+      ev.t += ev.dir * ev.velocidade * dt / ev.distancia;
+      if (ev.t >= 1) { ev.t = 1; ev.dir = -1; ev.pausaAtual = ev.espera; ev.avisouParada = false; }
+      else if (ev.t <= 0) { ev.t = 0; ev.dir = 1; ev.pausaAtual = ev.espera; ev.avisouParada = false; }
+
+      const p = ev.inicio;
+      moverBloco(e,
+        p.x + (ev.para.x - p.x) * ev.t,
+        p.y + (ev.para.y - p.y) * ev.t,
+        p.z + (ev.para.z - p.z) * ev.t);
+
+      // personagem em cima viaja junto e não pode andar enquanto isso
+      if (estado.blocoAtual === e) {
+        if (estavaParado) avisar('🛗 Elevador em movimento — espere…');
+        estado.passo = null;
+        estado.fila = [];
+        personagem.position.copy(posicaoNoBloco(e));
+      }
+    }
+  }
+
+  /** O personagem está viajando de elevador? (usado para travar os controles) */
+  const viajandoDeElevador = () => {
+    const b = estado.blocoAtual;
+    return !!b.elev && !elevadorParado(b);
+  };
+
+  /** Distância (em passos) de cada bloco até o spawn, considerando que um
+      elevador LIGA sua posição inicial ao seu destino — usado pelo sorteio de
+      moedas, para que elas também possam cair "do outro lado" do vão. */
+  function distanciasComElevador(grd, spawn) {
+    const nos = new Map();                       // células transitáveis
+    for (const b of grd.lista) if (grd.andavel(b)) nos.set(chave(b.x, b.y, b.z), b);
+    const destinos = new Map();                  // células virtuais (destino do elevador)
+    for (const b of grd.lista) {
+      if (!b.elev) continue;
+      const p = b.elev.para;
+      destinos.set(chave(p.x, p.y, p.z), { x: p.x, y: p.y, z: p.z });
+    }
+
+    const dist = new Map([[chave(spawn.x, spawn.y, spawn.z), 0]]);
+    const fila = [{ b: spawn, d: 0 }];
+    while (fila.length) {
+      const { b: atual, d } = fila.shift();
+      const empurrar = (alvo) => {
+        const k = chave(alvo.x, alvo.y, alvo.z);
+        if (dist.has(k)) return;
+        dist.set(k, d + 1);
+        fila.push({ b: alvo, d: d + 1 });
+      };
+
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        for (const dy of [0, 1, -1]) {
+          const viz = nos.get(chave(atual.x + dx, atual.y + dy, atual.z + dz));
+          if (viz) empurrar(viz);                       // células de destino NÃO
+        }                                                // são alcançáveis a pé
+      }
+      if (atual.elev) {                                  // ...só pelo elevador
+        const p = destinos.get(chave(atual.elev.para.x, atual.elev.para.y, atual.elev.para.z));
+        if (p) empurrar({ ...p, elev: null });
+      }
+      const p2 = grd.lista.find(b => b.elev &&
+        chave(b.elev.inicio.x, b.elev.inicio.y, b.elev.inicio.z) === chave(atual.x, atual.y, atual.z));
+      if (p2) empurrar(p2);                              // volta pelo elevador
+    }
+    return dist;
+  }
+
+
+  /* ============================================================================
      2) SISTEMA DE GRADE (regras de caminhada na matriz 3D)
      ============================================================================ */
-  const TIPOS_ANDAVEIS = new Set(['chao', 'moeda', 'spawn']);
-  const chave = (x, y, z) => `${x}|${y}|${z}`;
+  const TIPOS_ANDAVEIS = new Set(['chao', 'moeda', 'spawn', 'elevador']);
+  // arredonda as coordenadas: os elevadores ficam em posições fracionárias
+  // enquanto se movem, e a grade continua consultando por células inteiras
+  const chave = (x, y, z) => `${Math.round(x)}|${Math.round(y)}|${Math.round(z)}`;
 
   class Grade {
     constructor(blocos) {
@@ -715,6 +892,9 @@
         1 bloco de desnível (sobe/desce escadas e quinas). */
     podeMover(de, para) {
       if (!this.andavel(para)) return false;
+      // elevador só aceita embarque/desembarque quando está PARADO em uma ponta
+      if (para.elev && !elevadorParado(para)) return false;
+      if (de && de.elev && !elevadorParado(de)) return false;
       const dx = Math.abs(para.x - de.x);
       const dz = Math.abs(para.z - de.z);
       const dy = Math.abs(para.y - de.y);
@@ -827,7 +1007,8 @@
     chao:   padrao(0x8ed679, 0x6aa84f),
     parede: padrao(0xe8845f, 0xb8553a),
     moeda:  padrao(0xffd34d, 0xd9a020, { emissive: 0x7a5c00, emissiveIntensity: .5 }),
-    spawn:  padrao(0x9fd9f2, 0x62a8cc)
+    spawn:  padrao(0x9fd9f2, 0x62a8cc),
+    elevador: padrao(0xd7dee6, 0x7f8c9b, { emissive: 0x20303c, emissiveIntensity: .35 })
   };
   for (const k in MATERIAL) MATERIAL[k].forEach(m => (m.userData.compartilhado = true));
 
@@ -864,8 +1045,10 @@
     zoomMin: 0.45,                 // afastar (mapas grandes)
     zoomMax: 3,                    // aproximar
     mostrarBordas: true,           // contorno em cada bloco (visual de "tile")
-    sementeFixa: null              // número = sorteio de moedas reproduzível;
+    sementeFixa: null,             // número = sorteio de moedas reproduzível;
                                    // null = moedas em lugares novos a cada partida
+    velocidadeElevador: 1.15,      // células por segundo do elevador
+    esperaElevador: 1.1            // segundos parado em cada ponta (tempo de embarcar)
   };
 
   const RAIO_PERSONAGEM = 0.30;
@@ -930,13 +1113,13 @@
     tilesRaycast = [];
 
     // ---- sistema de grade com os dados da fase ----
-    // (cópia dos dados: o jogo MUTA os blocos ao coletar moedas, e os dados
-    //  originais em NIVEIS precisam continuar intactos para novos reinícios)
-    grade = new Grade(dados.blocos.map(b => ({ ...b })));
+    // (cópia profunda dos dados: o jogo MUTA os blocos — moedas coletadas e
+    //  estado dos elevadores — e os dados em NIVEIS precisam continuar intactos)
+    grade = new Grade(dados.blocos.map(clonarBloco));
+    for (const b of grade.lista) iniciarElevador(b);
 
     // ---- moedas: sorteio padronizado (ver sortearMoedas) ----
     sortearMoedas(dados, grade);
-
     // ---- limites (centro e tamanho do diorama) ----
     const min = { x: Infinity, y: Infinity, z: Infinity };
     const max = { x: -Infinity, y: -Infinity, z: -Infinity };
@@ -1091,16 +1274,8 @@
     const distMin = dados.distanciaMoedas ?? 3;        // passos mínimos do spawn
     const entreMin = dados.distanciaEntreMoedas ?? 2;  // passos mínimos entre moedas
 
-    // distância (em passos) de cada bloco até o spawn
-    const dist = new Map([[chave(spawn.x, spawn.y, spawn.z), 0]]);
-    const fila = [{ b: spawn, d: 0 }];
-    while (fila.length) {
-      const { b: atual, d } = fila.shift();
-      for (const v of grade.vizinhos(atual)) {
-        const k = chave(v.x, v.y, v.z);
-        if (!dist.has(k)) { dist.set(k, d + 1); fila.push({ b: v, d: d + 1 }); }
-      }
-    }
+    // distância (em passos) de cada bloco até o spawn, passando pelos elevadores
+    const dist = distanciasComElevador(grade, spawn);
 
     // 1) só entram blocos realmente caminháveis (nada em cima, tipo válido);
     // 2) só entram blocos ALCANÇÁVEIS a partir do spawn (nunca fica impossível);
@@ -1260,8 +1435,10 @@
     });
 
     coletadas++;
+    somarMoedaUniversal();            // +1 no contador universal (salvo)
     atualizarHUD();
-    avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas})`);
+    popupMoeda(b);                    // "+1" sobe da moeda
+    avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · total ${totalUniversal})`);
 
     if (CONFIG.concluirAposTodasAsMoedas && coletadas >= totalMoedas) concluirFase();
     else if (!CONFIG.concluirAposTodasAsMoedas) concluirFase();
@@ -1289,6 +1466,7 @@
   /* ---- clique: move o personagem ---- */
   canvas.addEventListener('click', ev => {
     if (estado.concluido) return;
+    if (viajandoDeElevador()) { avisar('🛗 Espera o elevador chegar…'); return; }
     const b = blocoSobOCursor(ev);
     if (!b || b === estado.blocoAtual) return;
 
@@ -1338,6 +1516,7 @@
     }
 
     if (estado.concluido) return;
+    if (viajandoDeElevador()) { avisar('🛗 Espera o elevador chegar…'); return; }
     const dir = tecla;
     if (!dir) return;
     ev.preventDefault();
@@ -1380,9 +1559,49 @@
   /* ============================================================================
      8) INTERFACE (HUD)
      ============================================================================ */
+  /* ---- CONTADOR UNIVERSAL DE MOEDAS -----------------------------------------
+     Cada moeda coletada em QUALQUER fase soma +1 neste total, que fica salvo no
+     navegador (localStorage). Diferente do contador da fase, que mostra
+     "coletadas/total desta fase" e zera ao trocar de nível.                */
+  let totalUniversal = 0;
+
+  function carregarTotalUniversal() {
+    try {
+      const salvo = Number(localStorage.getItem('diorama-total-moedas'));
+      totalUniversal = Number.isFinite(salvo) && salvo > 0 ? Math.floor(salvo) : 0;
+    } catch { totalUniversal = 0; }
+    return totalUniversal;
+  }
+
+  function somarMoedaUniversal() {
+    totalUniversal++;
+    try { localStorage.setItem('diorama-total-moedas', String(totalUniversal)); }
+    catch { /* localStorage indisponível: o total vale só para esta sessão */ }
+    return totalUniversal;
+  }
+
+  function atualizarTotalUniversal() {
+    document.getElementById('total-moedas').textContent = `Total 🪙 ${totalUniversal}`;
+  }
+
   function atualizarHUD() {
     document.getElementById('nome-fase').textContent = NIVEIS[indiceNivel].nome;
     document.getElementById('contador-moedas').textContent = `🪙 ${coletadas}/${totalMoedas}`;
+    atualizarTotalUniversal();
+  }
+
+  /** Popup "+1" que sobe da moeda coletada (posição do mundo -> tela). */
+  function popupMoeda(bloco) {
+    const mundo = new THREE.Vector3(bloco.x, bloco.y + 1.1, bloco.z).project(camera);
+    const x = (mundo.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-mundo.y * 0.5 + 0.5) * window.innerHeight;
+    const el = document.createElement('div');
+    el.className = 'popup-moeda';
+    el.textContent = '+1';
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 950);
   }
 
   /** Rótulo "Fase 2/5" — aparece no painel de título. */
@@ -1423,8 +1642,8 @@
       ? `Você terminou as ${NIVEIS.length} fases do diorama. 🎉`
       : `Você coletou todas as moedas. Prepare-se para: ${NIVEIS[indiceNivel + 1].nome}`;
     document.getElementById('btn-proxima').textContent = ultima ? 'Voltar à Fase 1 ↺' : 'Próxima Fase ▶';
-    document.getElementById('tela-conclusao').classList.add('visivel');
-  }
+    document.getElementById('total-moedas').textContent = `Total 🪙 ${totalUniversal} moedas`;
+    document.getElementById('tela-conclusao').classList.add('visivel');  }
 
   function reiniciar() {
     document.getElementById('tela-conclusao').classList.remove('visivel');
@@ -1494,6 +1713,7 @@
     ultimo = agora;
 
     atualizarCamera(dt);
+    atualizarElevadores(dt);
     atualizarPasso(dt);
     atualizarRotacaoPersonagem(dt);
     atualizarMoedas(dt, tempo);
@@ -1509,6 +1729,7 @@
     const salvo = Number(localStorage.getItem('diorama-progresso') || 0);
     if (Number.isFinite(salvo) && salvo >= 0 && salvo < NIVEIS.length) inicio = salvo;
   } catch { /* localStorage indisponível: começa na Fase 1 */ }
+  carregarTotalUniversal();          // contador universal de moedas
   carregarNivel(inicio);
   requestAnimationFrame(animar);
   window.__DIORAMA_PRONTO__ = true;   // usada pelo aviso de erro da CDN
