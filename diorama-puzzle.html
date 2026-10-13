@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Diorama Puzzle — Protótipo (Fase 1)</title>
+
+<style>
+  /* ============================================================
+     RESET / TELA CHEIA
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; padding: 0; }
+
+  html, body { width: 100%; height: 100%; }
+
+  body {
+    overflow: hidden;
+    background: #0b1220;
+    color: #eef4ff;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Um único canvas ocupando 100% da tela */
+  #palco {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+
+  /* ============================================================
+     HUD (por cima do canvas, sem bloquear os cliques)
+     ============================================================ */
+  .hud {
+    position: fixed;
+    inset: 0;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none; /* cliques passam para o canvas... */
+  }
+
+  .linha {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .cartao {
+    pointer-events: auto; /* ...exceto nos painéis e botões */
+    background: rgba(11, 18, 32, .66);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 14px;
+    padding: 10px 14px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 28px rgba(2, 6, 15, .28);
+  }
+
+  .cartao h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .72;
+  }
+
+  #nome-fase { font-size: 18px; font-weight: 800; margin-top: 2px; }
+
+  #contador-moedas {
+    font-size: 17px;
+    font-weight: 800;
+    color: #ffd34d;
+    white-space: nowrap;
+  }
+
+  .acoes { display: flex; gap: 8px; align-items: center; }
+
+  .grupo-botoes { display: flex; gap: 6px; }
+  .grupo-botoes button { padding: 11px 13px; font-size: 16px; line-height: 1; }
+
+  /* ---------- botões ---------- */
+  button {
+    font: inherit;
+    font-weight: 700;
+    color: #eaf2ff;
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 12px;
+    padding: 11px 16px;
+    cursor: pointer;
+    /* ESSENCIAL: o .hud tem pointer-events:none (para o canvas receber os
+       cliques); sem reativar aqui, os botões ficam "transparentes" ao mouse */
+    pointer-events: auto;
+    transition: transform .12s ease, background .2s ease, border-color .2s ease;
+  }
+  button:hover { background: rgba(255, 255, 255, .20); transform: translateY(-1px); }
+  button:active { transform: translateY(0) scale(.97); }
+  button:focus-visible { outline: 2px solid #ffd34d; outline-offset: 2px; }
+
+  #botoes-giro { display: flex; gap: 10px; justify-content: center; }
+
+  #dica {
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.5;
+    opacity: .85;
+    background: rgba(11, 18, 32, .5);
+    border-radius: 10px;
+    padding: 6px 10px;
+  }
+
+  /* ---------- aviso flutuante ---------- */
+  #aviso {
+    align-self: center;
+    font-size: 13.5px;
+    font-weight: 700;
+    background: rgba(11, 18, 32, .8);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 999px;
+    padding: 8px 16px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  #aviso.visivel { opacity: 1; transform: translateY(0); }
+
+  .rodape { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+  /* ============================================================
+     TELA DE CONCLUSÃO
+     ============================================================ */
+  #tela-conclusao {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: rgba(6, 12, 20, .55);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  #tela-conclusao.visivel { display: grid; }
+
+  .cartao-grande {
+    text-align: center;
+    padding: 28px 34px;
+    border-radius: 22px;
+    animation: surgir .35s cubic-bezier(.2, .9, .3, 1.4);
+  }
+  .cartao-grande .trofeu { font-size: 46px; }
+  .cartao-grande h2 { font-size: 28px; margin: 6px 0 8px; }
+  .cartao-grande p { opacity: .8; margin-bottom: 18px; font-size: 14.5px; }
+  .botoes-conclusao { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .cartao-grande button {
+    background: #ffd34d;
+    color: #2a1e00;
+    border-color: transparent;
+    padding: 12px 22px;
+    font-size: 15px;
+  }
+  .cartao-grande button:hover { background: #ffe07a; }
+  .cartao-grande button.secundario {
+    background: rgba(255, 255, 255, .12);
+    color: #eaf2ff;
+    border-color: rgba(255, 255, 255, .18);
+  }
+  .cartao-grande button.secundario:hover { background: rgba(255, 255, 255, .2); }
+
+  @keyframes surgir {
+    from { opacity: 0; transform: scale(.85) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ---------- erro de carregamento do CDN ---------- */
+  #erro-cdn {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: #0b1220;
+    z-index: 20;
+    text-align: center;
+    padding: 30px;
+    line-height: 1.6;
+  }
+  #erro-cdn.visivel { display: grid; }
+
+  @media (max-width: 560px) {
+    .cartao { padding: 8px 11px; }
+    #nome-fase { font-size: 16px; }
+    button { padding: 10px 12px; font-size: 14px; }
+    #dica { font-size: 11.5px; }
+  }
+</style>
+</head>
+
+<body>
+  <!-- ============================================================
+       CENA 3D
+       ============================================================ -->
+  <canvas id="palco"></canvas>
+
+  <!-- ============================================================
+       INTERFACE
+       ============================================================ -->
+  <div class="hud">
+    <div class="linha">
+      <div class="cartao">
+        <h1>Diorama Puzzle</h1>
+        <div id="nome-fase">Carregando…</div>
+      </div>
+      <div class="acoes">
+        <div class="cartao" id="contador-moedas">🪙 0/0</div>
+        <div class="grupo-botoes">
+          <button id="btn-fase-anterior" title="Fase anterior">◀</button>
+          <button id="btn-fase-proxima" title="Próxima fase">▶</button>
+        </div>
+        <div class="grupo-botoes">
+          <button id="btn-zoom-menos" title="Afastar">−</button>
+          <button id="btn-zoom-mais" title="Aproximar">＋</button>
+        </div>
+        <button id="btn-reiniciar-hud" title="Recomeçar a fase">↺</button>
+      </div>
+    </div>
+
+    <div class="rodape">
+      <div id="aviso"></div>
+      <div id="botoes-giro">
+        <button id="btn-girar-esq">⟲ Girar p/ Esquerda</button>
+        <button id="btn-girar-dir">⟳ Girar p/ Direita</button>
+      </div>
+      <div id="dica">
+        Clique na face de cima de um bloco ao lado do personagem para andar &nbsp;•&nbsp;
+        <b>WASD</b>/setas andam &nbsp;•&nbsp; <b>Q</b>/<b>E</b> giram a tela &nbsp;•&nbsp;
+        roda do mouse dá zoom
+      </div>
+    </div>
+  </div>
+
+  <!-- Tela exibida quando todas as moedas são coletadas -->
+  <div id="tela-conclusao">
+    <div class="cartao cartao-grande">
+      <div class="trofeu">🏆</div>
+      <h2 id="titulo-conclusao">Fase Concluída!</h2>
+      <p id="texto-conclusao">Você coletou todas as moedas do diorama.</p>
+      <div class="botoes-conclusao">
+        <button id="btn-proxima" class="destaque">Próxima Fase ▶</button>
+        <button id="btn-reiniciar">Jogar de Novo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensagem caso a CDN do Three.js não carregue -->
+  <div id="erro-cdn">
+    <div>
+      <h2>Não foi possível carregar o Three.js 😕</h2>
+      <p>Verifique sua conexão com a internet (o jogo usa a CDN jsDelivr)<br />
+      e recarregue a página.</p>
+    </div>
+  </div>
+
+  <!-- Three.js via CDN (import map = forma moderna de carregar ES Modules) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <!-- Fallback: avisa se a CDN não responder -->
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        if (!window.__DIORAMA_PRONTO__) {
+          document.getElementById('erro-cdn').classList.add('visivel');
+        }
+      }, 8000);
+    });
+  </script>
+
+  <script type="module">
+  import * as THREE from 'three';
+
+  /* ============================================================================
+     DIORAMA PUZZLE — protótipo de puzzle 3D em grade (estilo Captain Toad)
+     ----------------------------------------------------------------------------
+     Índice:
+       1) DADOS DAS FASES ............ onde criar a Fase 2, 3, 4...
+       2) SISTEMA DE GRADE ........... regras de caminhada na matriz 3D
+       3) CENA, CÂMERA E LUZES ....... visual de diorama (ortográfica + sombras)
+       4) CONSTRUÇÃO DO NÍVEL ........ dados -> blocos 3D
+       5) PERSONAGEM .................
+       6) CONTROLE DE CÂMERA ......... giro de 90° com interpolação suave
+       7) MOVIMENTAÇÃO ............... raycast + grade + animação
+       8) INTERFACE (HUD) ............
+       9) LOOP PRINCIPAL .............
+     ============================================================================ */
+
+
+  /* ============================================================================
+     1) DADOS DAS FASES
+     ----------------------------------------------------------------------------
+     Cada bloco é um objeto { x, y, z, tipo }:
+        x -> leste (+) / oeste (-)
+        y -> altura (0 = chão)
+        z -> sul (+) / norte (-)
+     Tipos disponíveis:
+        'chao'   -> piso por onde o personagem anda
+        'parede' -> bloqueio (não dá para subir)
+        'moeda'  -> piso com moeda: coletada quando o personagem passa por cima
+        'spawn'  -> onde o personagem começa (também é um piso)
+
+     >>> PARA CRIAR A FASE 2: copie o objeto inteiro abaixo, mude o "nome" e
+     >>> desenhe um novo array de blocos. Nenhuma outra parte do código precisa
+     >>> ser alterada (a câmera se enquadra sozinha no tamanho do mapa).
+     ============================================================================ */
+  const NIVEIS = [
+    {
+    nome: 'Fase 1 — Primeiros Passos',
+      moedas: 3, distanciaMoedas: 3, 
+      blocos: [
+        /* ---- fileira z = 0 (fundo do diorama) ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao'  },
+        { x: 1, y: 0, z: 0, tipo: 'chao'  },
+        { x: 2, y: 0, z: 0, tipo: 'chao'  },
+        { x: 2, y: 1, z: 0, tipo: 'parede'},  // bloqueia o atalho central
+        { x: 3, y: 0, z: 0, tipo: 'chao'  },
+        { x: 3, y: 1, z: 0, tipo: 'chao'  },  // terraço elevado (2º andar)
+        { x: 4, y: 0, z: 0, tipo: 'chao'  },
+        { x: 4, y: 1, z: 0, tipo: 'chao'  },  // (moedas sorteadas)
+
+        /* ---- fileira z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 1, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'chao' },
+        { x: 4, y: 0, z: 1, tipo: 'chao' },
+
+        /* ---- fileira z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 1, z: 2, tipo: 'parede'},  // obriga o desvio
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 3, y: 0, z: 2, tipo: 'chao' },
+        { x: 4, y: 0, z: 2, tipo: 'chao' },
+
+        /* ---- fileira z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 0, y: 1, z: 3, tipo: 'parede'},  // fecha a passagem oeste
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao'  },
+        { x: 3, y: 0, z: 3, tipo: 'chao' },
+        { x: 4, y: 0, z: 3, tipo: 'chao' },
+
+        /* ---- fileira z = 4 (frente do diorama) ---- */
+        { x: 0, y: 0, z: 4, tipo: 'spawn' },  // o jogador começa aqui
+        { x: 1, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },
+        { x: 4, y: 0, z: 4, tipo: 'chao'  }
+      ]
+    },
+
+
+
+{
+        nome: 'Fase 2 — O Salão',
+        moedas: 3, distanciaMoedas: 3, seed: 7,
+        blocos: [
+      /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao' },
+        { x: 1, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 0, z: 0, tipo: 'chao' },
+        { x: 3, y: 0, z: 0, tipo: 'chao' },
+        { x: 4, y: 0, z: 0, tipo: 'chao' },
+        { x: 5, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 1, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'chao' },
+        { x: 4, y: 0, z: 1, tipo: 'chao' },
+        { x: 5, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 3, y: 0, z: 2, tipo: 'chao' },
+        { x: 4, y: 0, z: 2, tipo: 'chao' },
+        { x: 5, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
+        { x: 3, y: 0, z: 3, tipo: 'chao' },
+        { x: 4, y: 0, z: 3, tipo: 'chao' },
+        { x: 5, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'chao' },
+        { x: 1, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },
+        { x: 4, y: 0, z: 4, tipo: 'chao' },
+        { x: 5, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+        { x: 0, y: 0, z: 5, tipo: 'spawn' },
+        { x: 1, y: 0, z: 5, tipo: 'chao' },
+        { x: 2, y: 0, z: 5, tipo: 'chao' },
+        { x: 3, y: 0, z: 5, tipo: 'chao' },
+        { x: 4, y: 0, z: 5, tipo: 'chao' },
+        { x: 5, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+        { x: 3, y: 1, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+        { x: 1, y: 1, z: 1, tipo: 'parede' },
+        { x: 3, y: 1, z: 1, tipo: 'parede' },
+        { x: 5, y: 1, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+        { x: 1, y: 1, z: 2, tipo: 'parede' },
+        { x: 3, y: 1, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+        { x: 1, y: 1, z: 3, tipo: 'parede' },
+        { x: 3, y: 1, z: 3, tipo: 'parede' },
+        { x: 4, y: 1, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+        { x: 1, y: 1, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+        { x: 1, y: 1, z: 5, tipo: 'parede' },
+        { x: 2, y: 1, z: 5, tipo: 'parede' },
+        { x: 3, y: 1, z: 5, tipo: 'parede' },
+        { x: 4, y: 1, z: 5, tipo: 'parede' },
+        ]
+      },
+
+      {
+        nome: 'Fase 3 — A Travessia',
+        moedas: 3, distanciaMoedas: 3, seed: 11,
+        blocos: [
+      /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'spawn' },
+        { x: 4, y: 0, z: 0, tipo: 'chao' },
+        { x: 5, y: 0, z: 0, tipo: 'chao' },
+        { x: 6, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'chao' },
+        { x: 4, y: 0, z: 1, tipo: 'chao' },
+        { x: 5, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 6, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
+        { x: 3, y: 0, z: 3, tipo: 'chao' },
+        { x: 4, y: 0, z: 3, tipo: 'chao' },
+        { x: 5, y: 0, z: 3, tipo: 'chao' },
+        { x: 6, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'parede' },
+        { x: 4, y: 0, z: 4, tipo: 'chao' },
+        { x: 5, y: 0, z: 4, tipo: 'chao' },
+        { x: 6, y: 0, z: 4, tipo: 'chao' },
+        ]
+      },
+
+      {
+        nome: 'Fase 4 — A Escada',
+        moedas: 3, distanciaMoedas: 3, seed: 23,
+        blocos: [
+      /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao' },
+        { x: 1, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 0, z: 0, tipo: 'chao' },
+        { x: 3, y: 0, z: 0, tipo: 'chao' },
+        { x: 4, y: 0, z: 0, tipo: 'chao' },
+        { x: 5, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 1, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'parede' },
+        { x: 4, y: 0, z: 1, tipo: 'parede' },
+        { x: 5, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 3, y: 0, z: 2, tipo: 'chao' },
+        { x: 4, y: 0, z: 2, tipo: 'chao' },
+        { x: 5, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
+        { x: 3, y: 0, z: 3, tipo: 'chao' },
+        { x: 4, y: 0, z: 3, tipo: 'chao' },
+        { x: 5, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'chao' },
+        { x: 1, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },
+        { x: 4, y: 0, z: 4, tipo: 'chao' },
+        { x: 5, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+        { x: 0, y: 0, z: 5, tipo: 'spawn' },
+        { x: 1, y: 0, z: 5, tipo: 'chao' },
+        { x: 2, y: 0, z: 5, tipo: 'chao' },
+        { x: 3, y: 0, z: 5, tipo: 'chao' },
+        { x: 4, y: 0, z: 5, tipo: 'chao' },
+        { x: 5, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+        { x: 3, y: 1, z: 1, tipo: 'parede' },
+        { x: 4, y: 1, z: 1, tipo: 'parede' },
+        { x: 5, y: 1, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+        { x: 5, y: 1, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+        { x: 5, y: 1, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+        { x: 5, y: 1, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+        { x: 5, y: 1, z: 5, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 3, y: 2, z: 1, tipo: 'parede' },
+        { x: 4, y: 2, z: 1, tipo: 'parede' },
+        { x: 5, y: 2, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+        { x: 5, y: 2, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+        { x: 5, y: 2, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+        { x: 5, y: 2, z: 4, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 3, y: 3, z: 1, tipo: 'parede' },
+        { x: 4, y: 3, z: 1, tipo: 'parede' },
+        { x: 5, y: 3, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+        { x: 5, y: 3, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+        { x: 5, y: 3, z: 3, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 3, y: 4, z: 1, tipo: 'chao' },
+        { x: 4, y: 4, z: 1, tipo: 'chao' },
+        { x: 5, y: 4, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 5, y: 4, z: 2, tipo: 'chao' },
+        ]
+      },
+
+      {
+        nome: 'Fase 5 — O Zigurate',
+        moedas: 4, distanciaMoedas: 2, seed: 31,
+        blocos: [
+      /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'parede' },
+        { x: 1, y: 0, z: 0, tipo: 'parede' },
+        { x: 2, y: 0, z: 0, tipo: 'parede' },
+        { x: 3, y: 0, z: 0, tipo: 'parede' },
+        { x: 4, y: 0, z: 0, tipo: 'parede' },
+        { x: 5, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'parede' },
+        { x: 1, y: 0, z: 1, tipo: 'parede' },
+        { x: 2, y: 0, z: 1, tipo: 'parede' },
+        { x: 3, y: 0, z: 1, tipo: 'parede' },
+        { x: 4, y: 0, z: 1, tipo: 'parede' },
+        { x: 5, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'parede' },
+        { x: 1, y: 0, z: 2, tipo: 'parede' },
+        { x: 2, y: 0, z: 2, tipo: 'parede' },
+        { x: 3, y: 0, z: 2, tipo: 'parede' },
+        { x: 4, y: 0, z: 2, tipo: 'parede' },
+        { x: 5, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'parede' },
+        { x: 1, y: 0, z: 3, tipo: 'parede' },
+        { x: 2, y: 0, z: 3, tipo: 'parede' },
+        { x: 3, y: 0, z: 3, tipo: 'parede' },
+        { x: 4, y: 0, z: 3, tipo: 'parede' },
+        { x: 5, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'parede' },
+        { x: 1, y: 0, z: 4, tipo: 'parede' },
+        { x: 2, y: 0, z: 4, tipo: 'parede' },
+        { x: 3, y: 0, z: 4, tipo: 'parede' },
+        { x: 4, y: 0, z: 4, tipo: 'parede' },
+        { x: 5, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+        { x: 0, y: 0, z: 5, tipo: 'chao' },
+        { x: 1, y: 0, z: 5, tipo: 'chao' },
+        { x: 2, y: 0, z: 5, tipo: 'chao' },
+        { x: 3, y: 0, z: 5, tipo: 'chao' },
+        { x: 4, y: 0, z: 5, tipo: 'chao' },
+        { x: 5, y: 0, z: 5, tipo: 'spawn' },
+      /* ---- z = 0 ---- */
+        { x: 0, y: 1, z: 0, tipo: 'parede' },
+        { x: 1, y: 1, z: 0, tipo: 'parede' },
+        { x: 2, y: 1, z: 0, tipo: 'parede' },
+        { x: 3, y: 1, z: 0, tipo: 'parede' },
+        { x: 4, y: 1, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 1, z: 1, tipo: 'parede' },
+        { x: 1, y: 1, z: 1, tipo: 'parede' },
+        { x: 2, y: 1, z: 1, tipo: 'parede' },
+        { x: 3, y: 1, z: 1, tipo: 'parede' },
+        { x: 4, y: 1, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 1, z: 2, tipo: 'parede' },
+        { x: 1, y: 1, z: 2, tipo: 'parede' },
+        { x: 2, y: 1, z: 2, tipo: 'parede' },
+        { x: 3, y: 1, z: 2, tipo: 'parede' },
+        { x: 4, y: 1, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 1, z: 3, tipo: 'parede' },
+        { x: 1, y: 1, z: 3, tipo: 'parede' },
+        { x: 2, y: 1, z: 3, tipo: 'parede' },
+        { x: 3, y: 1, z: 3, tipo: 'parede' },
+        { x: 4, y: 1, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+        { x: 0, y: 1, z: 4, tipo: 'chao' },
+        { x: 1, y: 1, z: 4, tipo: 'chao' },
+        { x: 2, y: 1, z: 4, tipo: 'chao' },
+        { x: 3, y: 1, z: 4, tipo: 'chao' },
+        { x: 4, y: 1, z: 4, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+        { x: 0, y: 2, z: 0, tipo: 'parede' },
+        { x: 1, y: 2, z: 0, tipo: 'parede' },
+        { x: 2, y: 2, z: 0, tipo: 'parede' },
+        { x: 3, y: 2, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 2, z: 1, tipo: 'parede' },
+        { x: 1, y: 2, z: 1, tipo: 'parede' },
+        { x: 2, y: 2, z: 1, tipo: 'parede' },
+        { x: 3, y: 2, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 2, z: 2, tipo: 'parede' },
+        { x: 1, y: 2, z: 2, tipo: 'parede' },
+        { x: 2, y: 2, z: 2, tipo: 'parede' },
+        { x: 3, y: 2, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+        { x: 0, y: 2, z: 3, tipo: 'chao' },
+        { x: 1, y: 2, z: 3, tipo: 'chao' },
+        { x: 2, y: 2, z: 3, tipo: 'chao' },
+        { x: 3, y: 2, z: 3, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+        { x: 0, y: 3, z: 0, tipo: 'parede' },
+        { x: 1, y: 3, z: 0, tipo: 'parede' },
+        { x: 2, y: 3, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 3, z: 1, tipo: 'parede' },
+        { x: 1, y: 3, z: 1, tipo: 'parede' },
+        { x: 2, y: 3, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+        { x: 0, y: 3, z: 2, tipo: 'chao' },
+        { x: 1, y: 3, z: 2, tipo: 'chao' },
+        { x: 2, y: 3, z: 2, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+        { x: 0, y: 4, z: 0, tipo: 'parede' },
+        { x: 1, y: 4, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+        { x: 0, y: 4, z: 1, tipo: 'chao' },
+        { x: 1, y: 4, z: 1, tipo: 'chao' },
+        ]
+      }
+  ];
+
+  let indiceNivel = 0;
+
+
+  /* ============================================================================
+     2) SISTEMA DE GRADE (regras de caminhada na matriz 3D)
+     ============================================================================ */
+  const TIPOS_ANDAVEIS = new Set(['chao', 'moeda', 'spawn']);
+  const chave = (x, y, z) => `${x}|${y}|${z}`;
+
+  class Grade {
+    constructor(blocos) {
+      this.lista = blocos;
+      this.mapa = new Map();          // "x|y|z" -> bloco (busca O(1))
+      for (const b of blocos) {
+        b.malha = null;               // preenchido na criação dos blocos 3D
+        b.moeda = null;
+        this.mapa.set(chave(b.x, b.y, b.z), b);
+      }
+    }
+
+    obter(x, y, z) { return this.mapa.get(chave(x, y, z)) || null; }
+    tem(x, y, z)  { return this.mapa.has(chave(x, y, z)); }
+
+    /** Um bloco é caminhável se o jogador consegue ficar em cima dele:
+        precisa ser de tipo 'chao'/'moeda'/'spawn' e ter o espaço
+        imediatamente acima LIVRE (sem outro bloco). */
+    andavel(b) {
+      if (!b || !TIPOS_ANDAVEIS.has(b.tipo)) return false;
+      return !this.tem(b.x, b.y + 1, b.z);
+    }
+
+    /** REGRA DE MOVIMENTO: 1 passo na horizontal (X ou Z) com no máximo
+        1 bloco de desnível (sobe/desce escadas e quinas). */
+    podeMover(de, para) {
+      if (!this.andavel(para)) return false;
+      const dx = Math.abs(para.x - de.x);
+      const dz = Math.abs(para.z - de.z);
+      const dy = Math.abs(para.y - de.y);
+      if (dx + dz !== 1) return false;   // precisa ser vizinho na horizontal
+      if (dy > 1) return false;          // no máximo 1 de desnível
+      return true;
+    }
+
+    /** Blocos vizinhos alcançáveis em um passo. */
+    vizinhos(b) {
+      const viz = [];
+    const horizontais = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dz] of horizontais) {
+        for (const dy of [0, 1, -1]) {
+          const alvo = this.obter(b.x + dx, b.y + dy, b.z + dz);
+          if (this.podeMover(b, alvo)) viz.push(alvo);
+        }
+      }
+      return viz;
+    }
+
+    /** Busca em largura (BFS): devolve a lista de blocos do caminho até o
+        destino (sem incluir o bloco de origem), ou null se não houver rota. */
+    rota(de, para) {
+      if (de === para || !this.andavel(para)) return null;
+      const anterior = new Map([[chave(de.x, de.y, de.z), null]]);
+      const fila = [de];
+      while (fila.length) {
+        const atual = fila.shift();
+        if (atual === para) {
+          const caminho = [];
+          let p = atual;
+          while (p) { caminho.unshift(p); p = anterior.get(chave(p.x, p.y, p.z)); }
+          return caminho.slice(1);
+        }
+        for (const v of this.vizinhos(atual)) {
+          const k = chave(v.x, v.y, v.z);
+          if (!anterior.has(k)) { anterior.set(k, atual); fila.push(v); }
+        }
+      }
+      return null;
+    }
+  }
+
+
+  /* ============================================================================
+     3) CENA, CÂMERA ORTOGRÁFICA E LUZES  (visual de diorama)
+     ============================================================================ */
+  const canvas = document.getElementById('palco');
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;                       // sombras ativadas
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;        // sombra suave
+
+  const cena = new THREE.Scene();
+  cena.background = new THREE.Color(0xbfe3f2);             // céu clarinho
+
+  /* ---- CÂMERA ISOMÉTRICA ----------------------------------------------------
+     OrthographicCamera = sem perspectiva: todos os blocos têm o MESMO tamanho
+     na tela, independentemente da distância (isometria perfeita).
+     A câmera orbita o centro do nível a um raio fixo, com a elevação clássica
+     de 35,26° (arctg(1/√2)) — o ângulo isométrico "verdadeiro".            */
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
+  const ELEVACAO   = Math.atan(1 / Math.sqrt(2));   // ≈ 35,26°
+  const RAIO_ORBITA = 90;                          // distância fictícia da órbita
+
+  let alvoCentro = new THREE.Vector3();            // centro do diorama na tela
+  let raioNivel  = 5;                              // raio p/ enquadramento automático
+
+  /* ---- LUZES ---------------------------------------------------------------
+     Ambiente: lá de cima e de baixo (aspecto cartoon, sem sombra dura).
+     Direcional: o "sol", com Shadow Map.                                */
+  const luzAmbiente = new THREE.AmbientLight(0xffffff, 0.55);
+
+  const luzSol = new THREE.DirectionalLight(0xfff3dd, 1.55);
+  luzSol.castShadow = true;
+  luzSol.shadow.mapSize.set(2048, 2048);
+  luzSol.shadow.bias = -0.0007;          // evita "shadow acne"
+  luzSol.shadow.normalBias = 0.02;
+
+  const luzPreenchimento = new THREE.DirectionalLight(0xcfe2ff, 0.35);
+  luzPreenchimento.position.set(-8, 5, -6);
+
+  cena.add(luzAmbiente, luzSol, luzSol.target, luzPreenchimento);
+
+
+  /* ---- MATERIAIS E GEOMETRIAS COMPARTILHADOS -------------------------------- */
+  const GEO_BLOCO = new THREE.BoxGeometry(1, 1, 1);
+  const GEO_MOEDA = new THREE.CylinderGeometry(0.30, 0.30, 0.07, 28);
+  GEO_MOEDA.rotateX(Math.PI / 2);        // moeda "em pé", girando no eixo Y
+
+  // BORDA de cada bloco: arestas do cubo (LineSegments é filho do tile, então
+  // não interfere no raycast, que não é recursivo)
+  const GEO_BORDAS = new THREE.EdgesGeometry(GEO_BLOCO);
+  const MATERIAL_BORDA = new THREE.LineBasicMaterial({
+    color: 0x1c2b1c, transparent: true, opacity: .38
+  });
+  MATERIAL_BORDA.userData.compartilhado = true;
+
+  function padrao(corTopo, corLado, extra = {}) {
+    const cima  = new THREE.MeshStandardMaterial({ color: corTopo, roughness: .9,  metalness: 0, ...extra });
+    const lados = new THREE.MeshStandardMaterial({ color: corLado, roughness: .95, metalness: 0, ...extra });
+    // Ordem das faces do BoxGeometry: +X, -X, +Y(topo), -Y, +Z, -Z
+    return [lados, lados, cima, lados, lados, lados];
+  }
+
+  const MATERIAL = {
+    chao:   padrao(0x8ed679, 0x6aa84f),
+    parede: padrao(0xe8845f, 0xb8553a),
+    moeda:  padrao(0xffd34d, 0xd9a020, { emissive: 0x7a5c00, emissiveIntensity: .5 }),
+    spawn:  padrao(0x9fd9f2, 0x62a8cc)
+  };
+  for (const k in MATERIAL) MATERIAL[k].forEach(m => (m.userData.compartilhado = true));
+
+  function materialMoedaBrilhante() {
+    return new THREE.MeshStandardMaterial({
+      color: 0xffd34d, emissive: 0xffc400, emissiveIntensity: .45,
+      metalness: .6, roughness: .25, transparent: true
+    });
+  }
+
+  /** Destaque do bloco sob o mouse. */
+  const destaque = new THREE.Mesh(
+    new THREE.BoxGeometry(1.05, 1.05, 1.05),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .25, depthWrite: false })
+  );
+  destaque.visible = false;
+  destaque.renderOrder = 2;
+  cena.add(destaque);
+
+
+  /* ============================================================================
+     ESTADO GLOBAL
+     ============================================================================ */
+  const CONFIG = {
+    duracaoPasso: 0.26,            // segundos por passo do personagem
+    alturaPulo: 0.16,              // altura do "pulinho" ao andar
+    suavizacaoGiro: 7,             // maior = giro mais rápido
+    margemCamera: 1.22,            // folga ao enquadrar o diorama
+    permitirCliqueDistante: true,  // false = só anda em bloco adjacente (regra estrita)
+    concluirAposTodasAsMoedas: true,
+    usarAlertaNativo: false,       // true = usa alert() do navegador
+    personagemEncaraACamera: false,// false = mantém a direção do último passo
+    zoom: 1,                       // 1 = diorama inteiro na tela
+    zoomMin: 0.45,                 // afastar (mapas grandes)
+    zoomMax: 3,                    // aproximar
+    mostrarBordas: true,           // contorno em cada bloco (visual de "tile")
+    sementeFixa: null              // número = sorteio de moedas reproduzível;
+                                   // null = moedas em lugares novos a cada partida
+  };
+
+  const RAIO_PERSONAGEM = 0.30;
+
+  let grade = null;            // Grade do nível atual
+  let grupoNivel = null;       // grupo com todos os blocos do nível
+  let tilesRaycast = [];       // malhas testadas no raycast
+  let spawn = null;
+
+  let totalMoedas = 0;
+  let coletadas = 0;
+
+  const estado = {
+    giroAtual: 0,          // rotação atual da câmera (radianos)
+    giroAlvo: 0,           // rotação desejada (sempre múltiplo de 90°)
+    passo: null,           // passo em andamento { de, para, bloco, t }
+    fila: [],              // próximos blocos do caminho
+    blocoAtual: null,      // bloco onde o personagem está (ou está indo)
+    concluido: false
+  };
+
+  /* ---- personagem (grupo) ---- */
+  const personagem = new THREE.Group();
+  const corpo = new THREE.Mesh(
+    new THREE.SphereGeometry(RAIO_PERSONAGEM, 28, 20),
+    new THREE.MeshStandardMaterial({ color: 0xff7043, roughness: .5, metalness: .05 })
+  );
+  corpo.castShadow = true;
+  personagem.add(corpo);
+
+  const materialOlho = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .4 });
+  for (const lado of [-1, 1]) {
+    const olho = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 10), materialOlho);
+    olho.position.set(0.105 * lado, 0.09, 0.275);
+    personagem.add(olho);
+  }
+  cena.add(personagem);
+
+  let rotacaoPersonagemAlvo = 0;
+
+
+  /* ============================================================================
+     4) CONSTRUÇÃO DO NÍVEL (dados -> blocos 3D)
+     ============================================================================ */
+  function carregarNivel(indice) {
+    indiceNivel = indice;
+    const dados = NIVEIS[indice];
+
+    // limpa o nível anterior
+    if (grupoNivel) {
+      cena.remove(grupoNivel);
+      grupoNivel.traverse(o => {
+        if (o.isMesh) {
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          mats.forEach(m => { if (m && !m.userData.compartilhado) m.dispose(); });
+        }
+      });
+    }
+
+    grupoNivel = new THREE.Group();
+    cena.add(grupoNivel);
+    tilesRaycast = [];
+
+    // ---- sistema de grade com os dados da fase ----
+    // (cópia dos dados: o jogo MUTA os blocos ao coletar moedas, e os dados
+    //  originais em NIVEIS precisam continuar intactos para novos reinícios)
+    grade = new Grade(dados.blocos.map(b => ({ ...b })));
+
+    // ---- moedas: sorteio padronizado (ver sortearMoedas) ----
+    sortearMoedas(dados, grade);
+
+    // ---- limites (centro e tamanho do diorama) ----
+    const min = { x: Infinity, y: Infinity, z: Infinity };
+    const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+    for (const b of grade.lista) {
+      min.x = Math.min(min.x, b.x); max.x = Math.max(max.x, b.x);
+      min.y = Math.min(min.y, b.y); max.y = Math.max(max.y, b.y);
+      min.z = Math.min(min.z, b.z); max.z = Math.max(max.z, b.z);
+    }
+    const tam = {
+      x: (max.x - min.x + 1) + 0.8,   // + base (plinto)
+      y: (max.y - min.y + 1) + 0.6,
+      z: (max.z - min.z + 1) + 0.8
+    };
+    alvoCentro.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
+    // raio da esfera que envolve o diorama -> usado pra enquadrar a câmera
+    raioNivel = 0.5 * Math.sqrt(tam.x ** 2 + tam.y ** 2 + tam.z ** 2) + 0.3;
+
+    // ---- sol posicionado em relação ao centro do nível ----
+    // (a área da sombra cresce junto com o mapa, para não "cortar" sombras)
+    luzSol.position.set(alvoCentro.x + 7, alvoCentro.y + 13, alvoCentro.z + 6);
+    luzSol.target.position.copy(alvoCentro);
+    const s = raioNivel * 1.6;
+    Object.assign(luzSol.shadow.camera, {
+      left: -s, right: s, top: s, bottom: -s,
+      near: 1, far: raioNivel * 4 + 40
+    });
+    luzSol.shadow.camera.updateProjectionMatrix();
+
+    // ---- base/plinto do diorama (a "maquete") ----
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(tam.x, 0.5, tam.z),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 })
+    );
+    base.position.set(alvoCentro.x, min.y - 0.75, alvoCentro.z);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    grupoNivel.add(base);
+    if (CONFIG.mostrarBordas) {
+      const bordaBase = new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA);
+      bordaBase.scale.set(tam.x, 0.5, tam.z);   // mesma geometria, escala do plinto
+      base.add(bordaBase);
+    }
+
+    // ---- blocos ----
+    // o spawn é resolvido ANTES do loop porque a animação de surgimento das
+    // moedas usa a distância até ele
+    const spawnLocal = grade.lista.find(b => b.tipo === 'spawn') || grade.lista[0];
+    for (const b of grade.lista) {
+      const malha = new THREE.Mesh(GEO_BLOCO, MATERIAL[b.tipo] || MATERIAL.chao);
+      malha.position.set(b.x, b.y, b.z);
+      malha.castShadow = true;      // projeta sombra
+      malha.receiveShadow = true;   // recebe sombra dos outros blocos
+      malha.userData.bloco = b;     // <-- ligação mala <-> dado da fase
+      b.malha = malha;
+      grupoNivel.add(malha);
+      tilesRaycast.push(malha);
+
+      // borda (contorno) do bloco — filha da malha, não entra no raycast
+      if (CONFIG.mostrarBordas) {
+        malha.add(new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA));
+      }
+
+      // moeda flutuando sobre o bloco 'moeda'
+      if (b.tipo === 'moeda') {
+        const moeda = new THREE.Mesh(GEO_MOEDA, materialMoedaBrilhante());
+        moeda.position.set(0, 0.78, 0);
+        moeda.castShadow = true;
+        moeda.scale.setScalar(0.001);         // começa invisível: vai "surgir"
+        b.moeda = moeda;
+        b.faseMoeda = Math.random() * Math.PI * 2;
+        malha.add(moeda);           // filha do bloco (não entra no raycast)
+
+        // animação de surgimento: pop com atraso conforme a distância do spawn
+        const passos = Math.abs(b.x - spawnLocal.x) + Math.abs(b.y - spawnLocal.y) + Math.abs(b.z - spawnLocal.z);
+        tween(0.42, p => {
+          // 0 → 1,15 → 1 (estufa e volta)
+          const escala = p < 0.7 ? (p / 0.7) * 1.15 : 1.15 - ((p - 0.7) / 0.3) * 0.15;
+          moeda.scale.setScalar(Math.max(0.001, escala));
+        }, null, passos * 0.045, moeda);
+      }
+    }
+
+    // ---- personagem no spawn ----
+    spawn = spawnLocal;                 // já resolvido acima (usado pelas moedas)
+    estado.blocoAtual = spawn;
+    estado.passo = null;
+    estado.fila = [];
+    estado.concluido = false;
+    personagem.position.copy(posicaoNoBloco(spawn));
+    personagem.visible = true;
+    destaque.visible = false;
+    document.getElementById('tela-conclusao').classList.remove('visivel');
+
+    // ---- HUD ----
+    CONFIG.zoom = 1;               // cada fase começa enquadrada por completo
+    totalMoedas = grade.lista.filter(b => b.tipo === 'moeda').length;
+    coletadas = 0;
+    atualizarHUD();
+    atualizarIndicadorFase();
+
+    atualizarEnquadramento();
+  }
+
+  /** Posição mundial (centro do personagem) em cima de um bloco. */
+  function posicaoNoBloco(b) {
+    return new THREE.Vector3(b.x, b.y + 0.5 + RAIO_PERSONAGEM + 0.02, b.z);
+  }
+
+
+  /* ============================================================================
+     4.1) RANDOMIZAÇÃO PADRONIZADA DE MOEDAS
+     ----------------------------------------------------------------------------
+     Cada fase declara quantas moedas ter (`dados.moedas`). O sorteio segue
+     sempre a mesma regra:
+       1. só entram blocos caminháveis que não sejam o spawn;
+       2. só entram blocos ALCANÇÁVEIS a partir do spawn (nunca fica impossível);
+       3. respeitam uma distância mínima do spawn e umas das outras;
+       4. com `dados.seed` fixo, o sorteio é reproduzível; sem ele, é aleatório.
+     Use `dados.moedasFixas: true` para manter as moedas já escritas no array.
+     ============================================================================ */
+  function semente(valor) {                     // gerador determinístico (mulberry32)
+    let a = valor >>> 0;
+    return () => {
+      a += 0x6D2B79F5;
+      let t = a;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function embaralhar(lista, rnd) {
+    for (let i = lista.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [lista[i], lista[j]] = [lista[j], lista[i]];
+    }
+  }
+
+  function sortearMoedas(dados, grade) {
+    // limpa moedas de uma partida anterior
+    for (const b of grade.lista) if (b.tipo === 'moeda') b.tipo = 'chao';
+    if (dados.moedasFixas) return;              // fase com moedas posicionadas à mão
+
+    const total = dados.moedas ?? 0;
+    if (!total) return;
+
+    // semente: `seed` da fase > `CONFIG.sementeFixa` > aleatório (padrão).
+    // Sem semente, cada partida (e cada reinício) tem moedas em lugares novos.
+    const sementeUsada = dados.seed ?? CONFIG.sementeFixa;
+    const rnd = sementeUsada == null ? Math.random : semente(sementeUsada);
+    const spawn = grade.lista.find(b => b.tipo === 'spawn') || grade.lista[0];
+    const distMin = dados.distanciaMoedas ?? 3;        // passos mínimos do spawn
+    const entreMin = dados.distanciaEntreMoedas ?? 2;  // passos mínimos entre moedas
+
+    // distância (em passos) de cada bloco até o spawn
+    const dist = new Map([[chave(spawn.x, spawn.y, spawn.z), 0]]);
+    const fila = [{ b: spawn, d: 0 }];
+    while (fila.length) {
+      const { b: atual, d } = fila.shift();
+      for (const v of grade.vizinhos(atual)) {
+        const k = chave(v.x, v.y, v.z);
+        if (!dist.has(k)) { dist.set(k, d + 1); fila.push({ b: v, d: d + 1 }); }
+      }
+    }
+
+    // 1) só entram blocos realmente caminháveis (nada em cima, tipo válido);
+    // 2) só entram blocos ALCANÇÁVEIS a partir do spawn (nunca fica impossível);
+    const candidatos = grade.lista.filter(b =>
+      grade.andavel(b) && b !== spawn && (dist.get(chave(b.x, b.y, b.z)) ?? Infinity) >= distMin);
+    embaralhar(candidatos, rnd);
+
+    const escolhidas = [];
+    for (const c of candidatos) {
+      if (escolhidas.length >= total) break;
+      const espacada = escolhidas.every(m =>
+        Math.abs(m.x - c.x) + Math.abs(m.y - c.y) + Math.abs(m.z - c.z) >= entreMin);
+      if (espacada) escolhidas.push(c);
+    }
+    // completa com as candidatas restantes se a distância mínima não permitiu
+    // preencher tudo (moeda em bloco andável nunca bloqueia o caminho)
+    for (const c of candidatos) {
+      if (escolhidas.length >= total) break;
+      if (!escolhidas.includes(c)) escolhidas.push(c);
+    }
+
+    for (const b of escolhidas) b.tipo = 'moeda';
+  }
+
+
+  /* ============================================================================
+     6) CONTROLE DE CÂMERA — giro do cenário em passos de 90°
+     ============================================================================ */
+  function girar(direcao) {                 // -1 = esquerda, +1 = direita
+    estado.giroAlvo += direcao * Math.PI / 2;
+  }
+
+  function atualizarCamera(dt) {
+    // interpolação exponencial (independente do FPS) até o alvo
+    const dif = estado.giroAlvo - estado.giroAtual;
+    if (Math.abs(dif) < 0.0008) estado.giroAtual = estado.giroAlvo;
+    else estado.giroAtual += dif * (1 - Math.exp(-CONFIG.suavizacaoGiro * dt));
+
+    const r = RAIO_ORBITA * Math.cos(ELEVACAO);
+    camera.position.set(
+      alvoCentro.x + r * Math.cos(estado.giroAtual),
+      alvoCentro.y + RAIO_ORBITA * Math.sin(ELEVACAO),
+      alvoCentro.z + r * Math.sin(estado.giroAtual)
+    );
+    camera.lookAt(alvoCentro);   // cenário sempre centralizado
+  }
+
+  /** Enquadra o diorama inteiro, em qualquer proporção de tela.
+      O zoom (roda do mouse / botões) só aperta ou afasta esse enquadramento. */
+  function atualizarEnquadramento() {
+    const aspecto = window.innerWidth / window.innerHeight;
+    const necessario = 2 * raioNivel * CONFIG.margemCamera / CONFIG.zoom;
+    const altura = aspecto < 1 ? necessario / aspecto : necessario;
+
+    camera.top = altura / 2;
+    camera.bottom = -altura / 2;
+    camera.left = -altura * aspecto / 2;
+    camera.right = altura * aspecto / 2;
+    camera.updateProjectionMatrix();
+  }
+
+  /** Aproxima/afasta a câmera sem sair dos limites. */
+  function ajustarZoom(fator) {
+    CONFIG.zoom = Math.min(CONFIG.zoomMax, Math.max(CONFIG.zoomMin, CONFIG.zoom * fator));
+    atualizarEnquadramento();
+    avisar(`Zoom ${Math.round(CONFIG.zoom * 100)}%`);
+  }
+
+  window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    atualizarEnquadramento();
+  });
+
+  // roda do mouse aproxima/afasta (passive:false para poder prevenir o scroll)
+  canvas.addEventListener('wheel', ev => {
+    ev.preventDefault();
+    ajustarZoom(ev.deltaY > 0 ? 0.9 : 1.1);
+  }, { passive: false });
+
+
+  /* ============================================================================
+     7) MOVIMENTAÇÃO — raycast na face superior + validação na grade
+     ============================================================================ */
+  const ray = new THREE.Raycaster();
+  const ponteiro = new THREE.Vector2();
+
+  /** Devolve o BLOCO que está sob o cursor (testando a face de cima dos tiles). */
+  function blocoSobOCursor(ev) {
+    const r = canvas.getBoundingClientRect();
+    ponteiro.x =  ((ev.clientX - r.left) / r.width)  * 2 - 1;
+    ponteiro.y = -((ev.clientY - r.top)  / r.height) * 2 + 1;
+    ray.setFromCamera(ponteiro, camera);
+    const acertos = ray.intersectObjects(tilesRaycast, false); // false = ignora filhos (moedas)
+    if (!acertos.length) return null;
+    // prioriza a FACE SUPERIOR do bloco (como manda o design do jogo);
+    // as malhas não são rotacionadas, então a normal local vale como mundial
+    const superior = acertos.find(a => a.face && a.face.normal.y > 0.5);
+    return (superior || acertos[0]).object.userData.bloco;
+  }
+
+  /** Define uma sequência de blocos a percorrer. */
+  function definirRota(rota) {
+    estado.fila = rota || [];
+    if (!estado.passo) proximoPasso();
+  }
+
+  function proximoPasso() {
+    const destino = estado.fila.shift();
+    if (!destino) return;
+    const de = personagem.position.clone();
+    estado.passo = { de, para: posicaoNoBloco(destino), bloco: destino, t: 0 };
+    girarPersonagemPara(destino.x - estado.blocoAtual.x, destino.z - estado.blocoAtual.z);
+    estado.blocoAtual = destino;
+  }
+
+  function atualizarPasso(dt) {
+    const p = estado.passo;
+    if (!p) return;
+
+    p.t += dt / CONFIG.duracaoPasso;
+    if (p.t >= 1) {
+      p.t = 1;
+      estado.passo = null;
+      personagem.position.copy(p.para);
+      aoEntrarNoBloco(p.bloco);
+      if (!estado.concluido) proximoPasso();
+    } else {
+      const e = p.t < .5 ? 4 * p.t ** 3 : 1 - (-2 * p.t + 2) ** 3 / 2;  // easeInOutCubic
+      personagem.position.lerpVectors(p.de, p.para, e);
+      personagem.position.y += Math.sin(Math.PI * p.t) * CONFIG.alturaPulo;  // pulinho
+    }
+  }
+
+  /** Chegou em um bloco: era moeda? então coleta. */
+  function aoEntrarNoBloco(b) {
+    if (b.tipo === 'moeda') coletarMoeda(b);
+  }
+
+  function coletarMoeda(b) {
+    b.tipo = 'chao';                       // o piso continua lá, sem a moeda
+    b.malha.material = MATERIAL.chao;
+
+    const malha = b.moeda;
+    b.moeda = null;
+    cancelarTweens(malha);                     // interrompe o "surgir", se ainda rolando
+    malha.scale.setScalar(1);
+
+    // animação: a moeda sobe, gira e desaparece
+    tween(0.45, p => {
+      malha.position.y = 0.78 + p * 1.2;
+      malha.rotation.y += 0.35;
+      malha.scale.setScalar(Math.max(0.001, 1 - p));
+      malha.material.opacity = 1 - p;
+    }, () => {
+      malha.parent.remove(malha);
+      malha.material.dispose();
+    });
+
+    coletadas++;
+    atualizarHUD();
+    avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas})`);
+
+    if (CONFIG.concluirAposTodasAsMoedas && coletadas >= totalMoedas) concluirFase();
+    else if (!CONFIG.concluirAposTodasAsMoedas) concluirFase();
+  }
+
+  /* ---- rotação do personagem (encara o destino; parado, encara a câmera) ---- */
+  function girarPersonagemPara(dx, dz) {
+    if (dx || dz) rotacaoPersonagemAlvo = Math.atan2(dx, dz);
+  }
+
+  function atualizarRotacaoPersonagem(dt) {
+    // enquanto anda, encara o destino; quando para, mantém a direção do último
+    // passo (a menos que CONFIG.personagemEncaraACamera esteja true)
+    if (!estado.passo && CONFIG.personagemEncaraACamera) {
+      rotacaoPersonagemAlvo = Math.atan2(
+        camera.position.x - personagem.position.x,
+        camera.position.z - personagem.position.z
+      );
+    }
+    let d = rotacaoPersonagemAlvo - personagem.rotation.y;
+    d = Math.atan2(Math.sin(d), Math.cos(d));   // menor ângulo
+    personagem.rotation.y += d * (1 - Math.exp(-12 * dt));
+  }
+
+  /* ---- clique: move o personagem ---- */
+  canvas.addEventListener('click', ev => {
+    if (estado.concluido) return;
+    const b = blocoSobOCursor(ev);
+    if (!b || b === estado.blocoAtual) return;
+
+    if (!TIPOS_ANDAVEIS.has(b.tipo)) { avisar('Esse bloco não é caminhável 🚧'); return; }
+
+    if (CONFIG.permitirCliqueDistante) {
+      const caminho = grade.rota(estado.blocoAtual, b);
+      if (!caminho || !caminho.length) { avisar('Não existe caminho até lá 🚫'); return; }
+      definirRota(caminho);
+    } else {
+      if (!grade.podeMover(estado.blocoAtual, b)) { avisar('Clique em um bloco ao lado 👆'); return; }
+      definirRota([b]);
+    }
+  });
+
+  /* ---- mouse: destaca o bloco que pode receber o personagem ---- */
+  canvas.addEventListener('pointermove', ev => {
+    const b = blocoSobOCursor(ev);
+    if (b && grade.podeMover(estado.blocoAtual, b)) {
+      destaque.visible = true;
+      destaque.position.set(b.x, b.y, b.z);
+      canvas.style.cursor = 'pointer';
+    } else {
+      destaque.visible = false;
+      canvas.style.cursor = 'default';
+    }
+  });
+  canvas.addEventListener('pointerleave', () => { destaque.visible = false; });
+
+  /* ---- teclado: WASD/setas movem, Q/E giram a tela ---- */
+  const TECLAS = {
+    arrowup: [0, 1], w: [0, 1],
+    arrowdown: [0, -1], s: [0, -1],
+    arrowleft: [-1, 0], a: [-1, 0],
+    arrowright: [1, 0], d: [1, 0],
+    q: 'girar-esq', e: 'girar-dir'          // giram o cenário em 90°
+  };
+
+  window.addEventListener('keydown', ev => {
+    const tecla = TECLAS[ev.key.toLowerCase()];
+
+    // Q / E: giro da tela (funciona até com a fase concluída)
+    if (tecla === 'girar-esq' || tecla === 'girar-dir') {
+      ev.preventDefault();
+      girar(tecla === 'girar-esq' ? -1 : 1);
+      return;
+    }
+
+    if (estado.concluido) return;
+    const dir = tecla;
+    if (!dir) return;
+    ev.preventDefault();
+
+    // converte a direção da tela para a direção do mundo, conforme o giro atual
+    const yaw = estado.giroAtual;
+    const frenteX = -Math.cos(yaw), frenteZ = -Math.sin(yaw);  // "fundo da tela"
+    const dirX = Math.sin(yaw), dirZ = -Math.cos(yaw);         // "direita da tela"
+    const mx = dirX * dir[0] + frenteX * dir[1];
+    const mz = dirZ * dir[0] + frenteZ * dir[1];
+
+    // reduz para o eixo dominante (movimento sempre alinhado à grade)
+    const ix = Math.abs(mx) >= Math.abs(mz) ? Math.sign(mx) : 0;
+    const iz = Math.abs(mx) >= Math.abs(mz) ? 0 : Math.sign(mz);
+
+    // tenta no mesmo nível, subindo e descendo
+    for (const dy of [0, 1, -1]) {
+      const alvo = grade.obter(estado.blocoAtual.x + ix, estado.blocoAtual.y + dy, estado.blocoAtual.z + iz);
+      if (grade.podeMover(estado.blocoAtual, alvo)) { definirRota([alvo]); return; }
+    }
+  });
+
+  /* ---- botões de giro ---- */
+  document.getElementById('btn-girar-esq').addEventListener('click', () => girar(-1));
+  document.getElementById('btn-girar-dir').addEventListener('click', () => girar(1));
+  document.getElementById('btn-zoom-menos').addEventListener('click', () => ajustarZoom(1 / 1.2));
+  document.getElementById('btn-zoom-mais').addEventListener('click', () => ajustarZoom(1.2));
+
+  // navegação livre entre fases (botões ◀ ▶ do HUD)
+  document.getElementById('btn-fase-anterior').addEventListener('click', () => {
+    carregarNivel((indiceNivel - 1 + NIVEIS.length) % NIVEIS.length);
+    avisar(`Fase ${indiceNivel + 1} de ${NIVEIS.length}`);
+  });
+  document.getElementById('btn-fase-proxima').addEventListener('click', () => {
+    carregarNivel((indiceNivel + 1) % NIVEIS.length);
+    avisar(`Fase ${indiceNivel + 1} de ${NIVEIS.length}`);
+  });
+
+
+  /* ============================================================================
+     8) INTERFACE (HUD)
+     ============================================================================ */
+  function atualizarHUD() {
+    document.getElementById('nome-fase').textContent = NIVEIS[indiceNivel].nome;
+    document.getElementById('contador-moedas').textContent = `🪙 ${coletadas}/${totalMoedas}`;
+  }
+
+  /** Rótulo "Fase 2/5" — aparece no painel de título. */
+  function atualizarIndicadorFase() {
+    document.getElementById('nome-fase').textContent =
+      `${NIVEIS[indiceNivel].nome}  ·  ${indiceNivel + 1}/${NIVEIS.length}`;
+  }
+  let temporizadorAviso;
+  function avisar(texto) {
+    const el = document.getElementById('aviso');
+    el.textContent = texto;
+    el.classList.add('visivel');
+    clearTimeout(temporizadorAviso);
+    temporizadorAviso = setTimeout(() => el.classList.remove('visivel'), 1700);
+  }
+
+  /** Existe uma fase depois dessa? */
+  const temProxima = () => indiceNivel + 1 < NIVEIS.length;
+
+  function concluirFase() {
+    estado.concluido = true;
+    estado.fila = [];
+    estado.passo = null;
+
+    // guarda o progresso (a fase mais avançada já concluída)
+    try {
+      const salvo = Number(localStorage.getItem('diorama-progresso') || 0);
+      if (indiceNivel + 1 > salvo) localStorage.setItem('diorama-progresso', String(indiceNivel + 1));
+    } catch { /* localStorage indisponível: segue sem salvar */ }
+
+    if (CONFIG.usarAlertaNativo) alert('Fase Concluída!');
+
+    // última fase tem texto e botão diferentes
+    const ultima = !temProxima();
+    document.getElementById('titulo-conclusao').textContent =
+      ultima ? 'Todas as Fases Concluídas!' : 'Fase Concluída!';
+    document.getElementById('texto-conclusao').textContent = ultima
+      ? `Você terminou as ${NIVEIS.length} fases do diorama. 🎉`
+      : `Você coletou todas as moedas. Prepare-se para: ${NIVEIS[indiceNivel + 1].nome}`;
+    document.getElementById('btn-proxima').textContent = ultima ? 'Voltar à Fase 1 ↺' : 'Próxima Fase ▶';
+    document.getElementById('tela-conclusao').classList.add('visivel');
+  }
+
+  function reiniciar() {
+    document.getElementById('tela-conclusao').classList.remove('visivel');
+    carregarNivel(indiceNivel);
+    avisar('Fase reiniciada ↺');
+  }
+
+  /** Avança para a próxima fase; na última, volta para a primeira. */
+  function proximaFase() {
+    document.getElementById('tela-conclusao').classList.remove('visivel');
+    carregarNivel(temProxima() ? indiceNivel + 1 : 0);
+    avisar(temProxima() ? `Fase ${indiceNivel + 1} de ${NIVEIS.length}` : 'De volta à Fase 1!');
+  }
+
+  document.getElementById('btn-reiniciar').addEventListener('click', reiniciar);
+  document.getElementById('btn-reiniciar-hud').addEventListener('click', reiniciar);
+  document.getElementById('btn-proxima').addEventListener('click', proximaFase);
+
+  // Enter / Espaço avançam de fase na tela de conclusão
+  window.addEventListener('keydown', ev => {
+    if (!estado.concluido) return;
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); proximaFase(); }
+  });
+
+  /* ---- sistema simples de "tweens" (animações com duração) ---- */
+  const tweens = [];
+  function tween(duracao, aoAtualizar, aoTerminar = null, atraso = 0, alvo = null) {
+    tweens.push({ t: -atraso, duracao, aoAtualizar, aoTerminar, alvo });
+  }
+  /** Cancela animações pendentes de um objeto (ex.: moeda que foi coletada). */
+  function cancelarTweens(alvo) {
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      if (tweens[i].alvo === alvo) tweens.splice(i, 1);
+    }
+  }
+  function atualizarTweens(dt) {
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const tw = tweens[i];
+      tw.t += dt;
+      if (tw.t < 0) continue;                 // ainda no atraso inicial
+      const p = Math.min(tw.t / tw.duracao, 1);
+      tw.aoAtualizar(p);
+      if (p >= 1) {
+        tweens.splice(i, 1);
+        if (tw.aoTerminar) tw.aoTerminar();
+      }
+    }
+  }
+
+
+  /* ============================================================================
+     9) LOOP PRINCIPAL
+     ============================================================================ */
+  function atualizarMoedas(dt, tempo) {
+    for (const b of grade.lista) {
+      if (!b.moeda) continue;
+      b.moeda.rotation.y += dt * 2.4;                                    // gira
+      b.moeda.position.y = 0.78 + Math.sin(tempo * 2.2 + b.faseMoeda) * 0.05; // flutua
+    }
+  }
+
+  let ultimo = performance.now();
+  function animar(agora) {
+    requestAnimationFrame(animar);
+    const dt = Math.min((agora - ultimo) / 1000, 0.05);   // no máx. 50ms por quadro
+    const tempo = agora / 1000;
+    ultimo = agora;
+
+    atualizarCamera(dt);
+    atualizarPasso(dt);
+    atualizarRotacaoPersonagem(dt);
+    atualizarMoedas(dt, tempo);
+    atualizarTweens(dt);
+
+    renderer.render(cena, camera);
+  }
+
+  /* ---- início ---- */
+  // continua de onde o jogador parou (progresso salvo no navegador)
+  let inicio = 0;
+  try {
+    const salvo = Number(localStorage.getItem('diorama-progresso') || 0);
+    if (Number.isFinite(salvo) && salvo >= 0 && salvo < NIVEIS.length) inicio = salvo;
+  } catch { /* localStorage indisponível: começa na Fase 1 */ }
+  carregarNivel(inicio);
+  requestAnimationFrame(animar);
+  window.__DIORAMA_PRONTO__ = true;   // usada pelo aviso de erro da CDN
+  </script>
+</body>
+</html>
