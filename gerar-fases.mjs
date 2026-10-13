@@ -272,18 +272,20 @@ f6.push({ x: 4, y: 0, z: 2, tipo: 'elevador', elev: { eixo: 'x', para: { x: 6, y
 /* ============================================================================
    FASE 7 — "O POÇO" (elevador VERTICAL subindo até uma plataforma)
    ----------------------------------------------------------------------------
-   O elevador sobe por um poço aberto no meio da base. O jogador embarca no
-   chão, ESPERA a subida e desembarca no patamar de cima.
+   O elevador sobe pela borda oeste da base. O jogador embarca por uma única
+   célula (1,0,0), ESPERA a subida e desembarca no patamar de cima.
+   O maciço que sustenta o patamar fica em z=1, longe do ponto de embarque.
    ============================================================================ */
 const f7 = [];
 for (let z = 0; z < 5; z++) {                                       // base 5x5
   for (let x = 0; x < 5; x++) {
-    if (x === 2 && z === 2) continue;                               // vão do poço
-    f7.push({ x, y: 0, z, tipo: x === 1 && z === 3 ? 'spawn' : 'chao' });
+    f7.push({ x, y: 0, z, tipo: x === 3 && z === 3 ? 'spawn' : 'chao' });
   }
 }
-f7.push({ x: 2, y: 1, z: 2, tipo: 'elevador', elev: { eixo: 'y', para: { x: 2, y: 4, z: 2 } } });
-for (const [x, z] of [[1, 2], [3, 2], [2, 1], [2, 3]]) {            // patamar + maciço
+// elevador vertical: sobe 3 células pela borda oeste
+f7.push({ x: 0, y: 1, z: 0, tipo: 'elevador', elev: { eixo: 'y', para: { x: 0, y: 4, z: 0 } } });
+// patamar de topo (3 células em y=4) + maciço de sustentação em z=1
+for (const [x, z] of [[0, 1], [1, 1], [2, 1]]) {
   f7.push({ x, y: 4, z, tipo: 'chao' });
   for (let k = 1; k < 4; k++) f7.push({ x, y: k, z, tipo: 'parede' });
 }
@@ -311,37 +313,17 @@ for (const f of fases) {
 
 console.log('\n' + (falhas ? `>>> ${falhas} PROBLEMA(S)` : '>>> TODAS AS FASES VÁLIDAS'));
 
-/* ---------- impressão do código para colar no HTML ---------- */
-function imprimirBlocos(blocos, recuo = '      ') {
-  const saida = [];
-  let zAtual = null;
-  for (const b of blocos) {
-    if (b.z !== zAtual) { saida.push(`${recuo}/* ---- z = ${b.z} ---- */`); zAtual = b.z; }
-    const extra = b.elev
-      ? `,\n      elev: { eixo: '${b.elev.eixo}', para: { x: ${b.elev.para.x}, y: ${b.elev.para.y}, z: ${b.elev.para.z} } }`
-      : '';
-    saida.push(`${recuo}{ x: ${b.x}, y: ${b.y}, z: ${b.z}, tipo: '${b.tipo}'${extra} },`);
-  }
-  return saida.join('\n');
-}
+/* ---------- impressão: JSON (fonte da verdade para o insersor) ---------- */
+const fasesJson = fases.map(f => ({
+  nome: f.nome,
+  moedas: f.moedas,
+  distanciaMoedas: f.distanciaMoedas,
+  blocos: f.bloco
+}));
 
-const partes = fases.map(f => {
-  const extra = [
-    `moedas: ${f.moedas}`,
-    `distanciaMoedas: ${f.distanciaMoedas}`
-  ].join(', ');
-  return `    {
-      nome: '${f.nome}',
-      ${extra},
-      blocos: [
-${imprimirBlocos(f.bloco)}
-      ]
-    }`;
-});
-
-const destino = path.join(aqui, 'fases-geradas.txt');
-fs.writeFileSync(destino, '\n' + partes.join(',\n\n') + '\n');
-console.log(`\nArrays gerados em: ${path.relative(process.cwd(), destino)}`);
+const destino = path.join(aqui, 'fases-geradas.json');
+fs.writeFileSync(destino, JSON.stringify(fasesJson, null, 2) + '\n');
+console.log(`\nArrays gerados em: ${path.relative(process.cwd(), destino)} (${fasesJson.length} fases)`);
 
 // mapa ASCII de cada fase para conferência visual
 for (const f of fases) {
