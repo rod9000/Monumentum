@@ -12,6 +12,8 @@ class Vector3 {
     this.z = a.z + (b.z - a.z) * t;
     return this;
   }
+  /** Projeção do mundo para a tela (mock: só precisa existir para o jogo rodar). */
+  project(camera) { return this; }
 }
 class Vector2 {
   constructor(x = 0, y = 0) { this.x = x; this.y = y; }

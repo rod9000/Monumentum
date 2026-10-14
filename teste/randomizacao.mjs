@@ -33,7 +33,7 @@ let codigo = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1]
   .replace(/import \* as THREE from 'three';/, "import * as THREE from './mock-three.mjs';")
   .replace('window.__DIORAMA_PRONTO__ = true;',
     `window.__DIORAMA_PRONTO__ = true;
-     export { grade, estado, NIVEIS, carregarNivel, sortearMoedas, Grade, CONFIG };`);
+     export { grade, estado, NIVEIS, carregarNivel, sortearMoedas, Grade, iniciarElevador, CONFIG };`);
 fs.writeFileSync(path.join(aqui, 'jogo-teste.mjs'), codigo);
 
 const mod = await import('./jogo-teste.mjs');
@@ -41,7 +41,7 @@ let agora = performance.now();
 const frames = n => { for (let i = 0; i < n; i++) { agora += 16; const f = raf; raf = null; f(agora); } };
 
 let falhas = 0;
-const ok = (cond, msg) => { console.log((cond ? '  ✔ ' : '  ✘ ') + msg); if (!cond) falhas++; };
+const ok = (cond, msg) => { console.log((cond ? '  [ok] ' : '  [FALHA] ') + msg); if (!cond) falhas++; };
 
 const SORTEIOS = 120;
 const chave = (x, y, z) => `${x}|${y}|${z}`;
@@ -62,14 +62,41 @@ for (let i = 0; i < mod.NIVEIS.length; i++) {
   for (let n = 0; n < SORTEIOS; n++) {
     // Grade nova a partir dos dados da fase (mesma cópia que o jogo faz)
     const g = new mod.Grade(nivel.blocos.map(b => ({ ...b })));
+    // os elevadores precisam do estado inicial (t/para/inicio), como no jogo
+    for (const b of g.lista) {
+      if (b.elev) {
+        b.elev = { ...b.elev, para: { ...b.elev.para } };
+        mod.iniciarElevador(b);
+      }
+    }
     mod.sortearMoedas(nivel, g);
 
     const moedas = g.lista.filter(b => b.tipo === 'moeda');
     if (moedas.length !== quantidade) sempreQuantidadeCerta = false;
 
     const spawn = g.lista.find(b => b.tipo === 'spawn');
+    const elev = g.lista.find(b => b.elev);
+    // em fases com elevador, a moeda pode ficar do "lado de lá": alcançável
+    // a pé do spawn OU a pé do destino do elevador
+    const la = elev ? elev.elev.para : null;
+    const alcancaAPe = (de, celula) => {
+      const alvo = chave(celula.x, celula.y, celula.z);
+      const vistos = new Set([chave(de.x, de.y, de.z)]);
+      const fila = [de];
+      while (fila.length) {
+        const a = fila.shift();
+        if (chave(a.x, a.y, a.z) === alvo) return true;
+        for (const v of g.vizinhos(a)) {
+          const k = chave(v.x, v.y, v.z);
+          if (!vistos.has(k)) { vistos.add(k); fila.push(v); }
+        }
+      }
+      return false;
+    };
     for (const m of moedas) {
-      if (!g.rota(spawn, m)) sempreAlcancaveis = false;
+      const peloSpawn = alcancaAPe(spawn, m);
+      const pelaPonte = la ? alcancaAPe(la, m) : false;
+      if (!peloSpawn && !pelaPonte) sempreAlcancaveis = false;
       if (!g.andavel(m)) sempreEmBlocoValido = false;      // buraco/parede/teto
       const k = chave(m.x, m.y, m.z);
       blocosSorteados.set(k, (blocosSorteados.get(k) || 0) + 1);
@@ -101,6 +128,7 @@ console.log(`  Fase 3: ${f3.blocos.length} blocos, ${candidatosF3} candidatos a 
 const posicoesF3 = new Set();
 for (let n = 0; n < 300; n++) {
   const g = new mod.Grade(f3.blocos.map(b => ({ ...b })));
+  for (const b of g.lista) if (b.elev) { b.elev = { ...b.elev, para: { ...b.elev.para } }; mod.iniciarElevador(b); }
   mod.sortearMoedas(f3, g);
   g.lista.filter(b => b.tipo === 'moeda').forEach(m => posicoesF3.add(chave(m.x, m.y, m.z)));
 }

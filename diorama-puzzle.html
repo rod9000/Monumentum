@@ -368,143 +368,137 @@
      ============================================================================ */
   const NIVEIS = [
     {
-    nome: 'Fase 1 — Primeiros Passos',
-      moedas: 3, distanciaMoedas: 3, 
+      nome: 'Fase 1 — Primeiros Passos',
+      moedas: 3, distanciaMoedas: 3,
       blocos: [
-        /* ---- fileira z = 0 (fundo do diorama) ---- */
-        { x: 0, y: 0, z: 0, tipo: 'chao'  },
-        { x: 1, y: 0, z: 0, tipo: 'chao'  },
-        { x: 2, y: 0, z: 0, tipo: 'chao'  },
-        { x: 2, y: 1, z: 0, tipo: 'parede'},  // bloqueia o atalho central
-        { x: 3, y: 0, z: 0, tipo: 'chao'  },
-        { x: 3, y: 1, z: 0, tipo: 'chao'  },  // terraço elevado (2º andar)
-        { x: 4, y: 0, z: 0, tipo: 'chao'  },
-        { x: 4, y: 1, z: 0, tipo: 'chao'  },  // (moedas sorteadas)
-
-        /* ---- fileira z = 1 ---- */
+        /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao' },
+        { x: 1, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 1, z: 0, tipo: 'parede' },
+        { x: 3, y: 0, z: 0, tipo: 'chao' },
+        { x: 3, y: 1, z: 0, tipo: 'chao' },
+        { x: 4, y: 0, z: 0, tipo: 'chao' },
+        { x: 4, y: 1, z: 0, tipo: 'chao' },
+        /* ---- z = 1 ---- */
         { x: 0, y: 0, z: 1, tipo: 'chao' },
         { x: 1, y: 0, z: 1, tipo: 'chao' },
         { x: 2, y: 0, z: 1, tipo: 'chao' },
         { x: 3, y: 0, z: 1, tipo: 'chao' },
         { x: 4, y: 0, z: 1, tipo: 'chao' },
-
-        /* ---- fileira z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 0, z: 2, tipo: 'chao' },
         { x: 1, y: 0, z: 2, tipo: 'chao' },
-        { x: 1, y: 1, z: 2, tipo: 'parede'},  // obriga o desvio
+        { x: 1, y: 1, z: 2, tipo: 'parede' },
         { x: 2, y: 0, z: 2, tipo: 'chao' },
         { x: 3, y: 0, z: 2, tipo: 'chao' },
         { x: 4, y: 0, z: 2, tipo: 'chao' },
-
-        /* ---- fileira z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 0, z: 3, tipo: 'chao' },
-        { x: 0, y: 1, z: 3, tipo: 'parede'},  // fecha a passagem oeste
+        { x: 0, y: 1, z: 3, tipo: 'parede' },
         { x: 1, y: 0, z: 3, tipo: 'chao' },
-        { x: 2, y: 0, z: 3, tipo: 'chao'  },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
         { x: 3, y: 0, z: 3, tipo: 'chao' },
         { x: 4, y: 0, z: 3, tipo: 'chao' },
-
-        /* ---- fileira z = 4 (frente do diorama) ---- */
-        { x: 0, y: 0, z: 4, tipo: 'spawn' },  // o jogador começa aqui
+        /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'spawn' },
         { x: 1, y: 0, z: 4, tipo: 'chao' },
         { x: 2, y: 0, z: 4, tipo: 'chao' },
         { x: 3, y: 0, z: 4, tipo: 'chao' },
-        { x: 4, y: 0, z: 4, tipo: 'chao'  }
+        { x: 4, y: 0, z: 4, tipo: 'chao' },
       ]
     },
 
-
-
-{
-        nome: 'Fase 2 — O Salão',
-        moedas: 3, distanciaMoedas: 3, 
-        blocos: [
-      /* ---- z = 0 ---- */
+    {
+      nome: 'Fase 2 — O Salão',
+      moedas: 3, distanciaMoedas: 3,
+      blocos: [
+        /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'chao' },
         { x: 1, y: 0, z: 0, tipo: 'chao' },
         { x: 2, y: 0, z: 0, tipo: 'chao' },
         { x: 3, y: 0, z: 0, tipo: 'chao' },
         { x: 4, y: 0, z: 0, tipo: 'chao' },
         { x: 5, y: 0, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 0, z: 1, tipo: 'chao' },
         { x: 1, y: 0, z: 1, tipo: 'chao' },
         { x: 2, y: 0, z: 1, tipo: 'chao' },
         { x: 3, y: 0, z: 1, tipo: 'chao' },
         { x: 4, y: 0, z: 1, tipo: 'chao' },
         { x: 5, y: 0, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 0, z: 2, tipo: 'chao' },
         { x: 1, y: 0, z: 2, tipo: 'chao' },
         { x: 2, y: 0, z: 2, tipo: 'chao' },
         { x: 3, y: 0, z: 2, tipo: 'chao' },
         { x: 4, y: 0, z: 2, tipo: 'chao' },
         { x: 5, y: 0, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 0, z: 3, tipo: 'chao' },
         { x: 1, y: 0, z: 3, tipo: 'chao' },
         { x: 2, y: 0, z: 3, tipo: 'chao' },
         { x: 3, y: 0, z: 3, tipo: 'chao' },
         { x: 4, y: 0, z: 3, tipo: 'chao' },
         { x: 5, y: 0, z: 3, tipo: 'chao' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 0, y: 0, z: 4, tipo: 'chao' },
         { x: 1, y: 0, z: 4, tipo: 'chao' },
         { x: 2, y: 0, z: 4, tipo: 'chao' },
         { x: 3, y: 0, z: 4, tipo: 'chao' },
         { x: 4, y: 0, z: 4, tipo: 'chao' },
         { x: 5, y: 0, z: 4, tipo: 'chao' },
-      /* ---- z = 5 ---- */
+        /* ---- z = 5 ---- */
         { x: 0, y: 0, z: 5, tipo: 'spawn' },
         { x: 1, y: 0, z: 5, tipo: 'chao' },
         { x: 2, y: 0, z: 5, tipo: 'chao' },
         { x: 3, y: 0, z: 5, tipo: 'chao' },
         { x: 4, y: 0, z: 5, tipo: 'chao' },
         { x: 5, y: 0, z: 5, tipo: 'chao' },
-      /* ---- z = 0 ---- */
+        /* ---- z = 0 ---- */
         { x: 3, y: 1, z: 0, tipo: 'parede' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 1, y: 1, z: 1, tipo: 'parede' },
         { x: 3, y: 1, z: 1, tipo: 'parede' },
         { x: 5, y: 1, z: 1, tipo: 'parede' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 1, y: 1, z: 2, tipo: 'parede' },
         { x: 3, y: 1, z: 2, tipo: 'parede' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 1, y: 1, z: 3, tipo: 'parede' },
         { x: 3, y: 1, z: 3, tipo: 'parede' },
         { x: 4, y: 1, z: 3, tipo: 'parede' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 1, y: 1, z: 4, tipo: 'parede' },
-      /* ---- z = 5 ---- */
+        /* ---- z = 5 ---- */
         { x: 1, y: 1, z: 5, tipo: 'parede' },
         { x: 2, y: 1, z: 5, tipo: 'parede' },
         { x: 3, y: 1, z: 5, tipo: 'parede' },
         { x: 4, y: 1, z: 5, tipo: 'parede' },
-        ]
-      },
+      ]
+    },
 
-      {
-        nome: 'Fase 3 — A Travessia',
-        moedas: 3, distanciaMoedas: 3, 
-        blocos: [
-      /* ---- z = 0 ---- */
+    {
+      nome: 'Fase 3 — A Travessia',
+      moedas: 3, distanciaMoedas: 3,
+      blocos: [
+        /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'spawn' },
         { x: 4, y: 0, z: 0, tipo: 'chao' },
         { x: 5, y: 0, z: 0, tipo: 'chao' },
         { x: 6, y: 0, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 0, z: 1, tipo: 'chao' },
         { x: 2, y: 0, z: 1, tipo: 'chao' },
         { x: 3, y: 0, z: 1, tipo: 'chao' },
         { x: 4, y: 0, z: 1, tipo: 'chao' },
         { x: 5, y: 0, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 0, z: 2, tipo: 'chao' },
         { x: 1, y: 0, z: 2, tipo: 'chao' },
         { x: 2, y: 0, z: 2, tipo: 'chao' },
         { x: 6, y: 0, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 0, z: 3, tipo: 'chao' },
         { x: 1, y: 0, z: 3, tipo: 'chao' },
         { x: 2, y: 0, z: 3, tipo: 'chao' },
@@ -512,218 +506,323 @@
         { x: 4, y: 0, z: 3, tipo: 'chao' },
         { x: 5, y: 0, z: 3, tipo: 'chao' },
         { x: 6, y: 0, z: 3, tipo: 'chao' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 0, y: 0, z: 4, tipo: 'chao' },
         { x: 2, y: 0, z: 4, tipo: 'chao' },
-        { x: 3, y: 0, z: 4, tipo: 'chao' },    // piso sob a parede
-        { x: 3, y: 1, z: 4, tipo: 'parede' },  // parede elevada (marrom)
+        { x: 3, y: 0, z: 4, tipo: 'parede' },
         { x: 4, y: 0, z: 4, tipo: 'chao' },
         { x: 5, y: 0, z: 4, tipo: 'chao' },
         { x: 6, y: 0, z: 4, tipo: 'chao' },
-        ]
-      },
+      ]
+    },
 
-      {
-        nome: 'Fase 4 — A Escada',
-        moedas: 3, distanciaMoedas: 3, 
-        blocos: [
-      /* ---- z = 0 ---- */
+    {
+      nome: 'Fase 4 — A Escada',
+      moedas: 3, distanciaMoedas: 3,
+      blocos: [
+        /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'chao' },
         { x: 1, y: 0, z: 0, tipo: 'chao' },
         { x: 2, y: 0, z: 0, tipo: 'chao' },
         { x: 3, y: 0, z: 0, tipo: 'chao' },
         { x: 4, y: 0, z: 0, tipo: 'chao' },
         { x: 5, y: 0, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 0, z: 1, tipo: 'chao' },
         { x: 1, y: 0, z: 1, tipo: 'chao' },
         { x: 2, y: 0, z: 1, tipo: 'chao' },
         { x: 3, y: 0, z: 1, tipo: 'parede' },
         { x: 4, y: 0, z: 1, tipo: 'parede' },
         { x: 5, y: 0, z: 1, tipo: 'parede' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 0, z: 2, tipo: 'chao' },
         { x: 1, y: 0, z: 2, tipo: 'chao' },
         { x: 2, y: 0, z: 2, tipo: 'chao' },
         { x: 3, y: 0, z: 2, tipo: 'chao' },
         { x: 4, y: 0, z: 2, tipo: 'chao' },
         { x: 5, y: 0, z: 2, tipo: 'parede' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 0, z: 3, tipo: 'chao' },
         { x: 1, y: 0, z: 3, tipo: 'chao' },
         { x: 2, y: 0, z: 3, tipo: 'chao' },
         { x: 3, y: 0, z: 3, tipo: 'chao' },
         { x: 4, y: 0, z: 3, tipo: 'chao' },
         { x: 5, y: 0, z: 3, tipo: 'parede' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 0, y: 0, z: 4, tipo: 'chao' },
         { x: 1, y: 0, z: 4, tipo: 'chao' },
         { x: 2, y: 0, z: 4, tipo: 'chao' },
         { x: 3, y: 0, z: 4, tipo: 'chao' },
         { x: 4, y: 0, z: 4, tipo: 'chao' },
         { x: 5, y: 0, z: 4, tipo: 'parede' },
-      /* ---- z = 5 ---- */
+        /* ---- z = 5 ---- */
         { x: 0, y: 0, z: 5, tipo: 'spawn' },
         { x: 1, y: 0, z: 5, tipo: 'chao' },
         { x: 2, y: 0, z: 5, tipo: 'chao' },
         { x: 3, y: 0, z: 5, tipo: 'chao' },
         { x: 4, y: 0, z: 5, tipo: 'chao' },
         { x: 5, y: 0, z: 5, tipo: 'parede' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 3, y: 1, z: 1, tipo: 'parede' },
         { x: 4, y: 1, z: 1, tipo: 'parede' },
         { x: 5, y: 1, z: 1, tipo: 'parede' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 5, y: 1, z: 2, tipo: 'parede' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 5, y: 1, z: 3, tipo: 'parede' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 5, y: 1, z: 4, tipo: 'parede' },
-      /* ---- z = 5 ---- */
+        /* ---- z = 5 ---- */
         { x: 5, y: 1, z: 5, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 3, y: 2, z: 1, tipo: 'parede' },
         { x: 4, y: 2, z: 1, tipo: 'parede' },
         { x: 5, y: 2, z: 1, tipo: 'parede' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 5, y: 2, z: 2, tipo: 'parede' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 5, y: 2, z: 3, tipo: 'parede' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 5, y: 2, z: 4, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 3, y: 3, z: 1, tipo: 'parede' },
         { x: 4, y: 3, z: 1, tipo: 'parede' },
         { x: 5, y: 3, z: 1, tipo: 'parede' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 5, y: 3, z: 2, tipo: 'parede' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 5, y: 3, z: 3, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 3, y: 4, z: 1, tipo: 'chao' },
         { x: 4, y: 4, z: 1, tipo: 'chao' },
         { x: 5, y: 4, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 5, y: 4, z: 2, tipo: 'chao' },
-        ]
-      },
+      ]
+    },
 
-      {
-        nome: 'Fase 5 — O Zigurate',
-        moedas: 4, distanciaMoedas: 2, 
-        blocos: [
-      /* ---- z = 0 ---- */
+    {
+      nome: 'Fase 5 — O Zigurate',
+      moedas: 4, distanciaMoedas: 2,
+      blocos: [
+        /* ---- z = 0 ---- */
         { x: 0, y: 0, z: 0, tipo: 'parede' },
         { x: 1, y: 0, z: 0, tipo: 'parede' },
         { x: 2, y: 0, z: 0, tipo: 'parede' },
         { x: 3, y: 0, z: 0, tipo: 'parede' },
         { x: 4, y: 0, z: 0, tipo: 'parede' },
         { x: 5, y: 0, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 0, z: 1, tipo: 'parede' },
         { x: 1, y: 0, z: 1, tipo: 'parede' },
         { x: 2, y: 0, z: 1, tipo: 'parede' },
         { x: 3, y: 0, z: 1, tipo: 'parede' },
         { x: 4, y: 0, z: 1, tipo: 'parede' },
         { x: 5, y: 0, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 0, z: 2, tipo: 'parede' },
         { x: 1, y: 0, z: 2, tipo: 'parede' },
         { x: 2, y: 0, z: 2, tipo: 'parede' },
         { x: 3, y: 0, z: 2, tipo: 'parede' },
         { x: 4, y: 0, z: 2, tipo: 'parede' },
         { x: 5, y: 0, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 0, z: 3, tipo: 'parede' },
         { x: 1, y: 0, z: 3, tipo: 'parede' },
         { x: 2, y: 0, z: 3, tipo: 'parede' },
         { x: 3, y: 0, z: 3, tipo: 'parede' },
         { x: 4, y: 0, z: 3, tipo: 'parede' },
         { x: 5, y: 0, z: 3, tipo: 'chao' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 0, y: 0, z: 4, tipo: 'parede' },
         { x: 1, y: 0, z: 4, tipo: 'parede' },
         { x: 2, y: 0, z: 4, tipo: 'parede' },
         { x: 3, y: 0, z: 4, tipo: 'parede' },
         { x: 4, y: 0, z: 4, tipo: 'parede' },
         { x: 5, y: 0, z: 4, tipo: 'chao' },
-      /* ---- z = 5 ---- */
+        /* ---- z = 5 ---- */
         { x: 0, y: 0, z: 5, tipo: 'chao' },
         { x: 1, y: 0, z: 5, tipo: 'chao' },
         { x: 2, y: 0, z: 5, tipo: 'chao' },
         { x: 3, y: 0, z: 5, tipo: 'chao' },
         { x: 4, y: 0, z: 5, tipo: 'chao' },
         { x: 5, y: 0, z: 5, tipo: 'spawn' },
-      /* ---- z = 0 ---- */
+        /* ---- z = 0 ---- */
         { x: 0, y: 1, z: 0, tipo: 'parede' },
         { x: 1, y: 1, z: 0, tipo: 'parede' },
         { x: 2, y: 1, z: 0, tipo: 'parede' },
         { x: 3, y: 1, z: 0, tipo: 'parede' },
         { x: 4, y: 1, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 1, z: 1, tipo: 'parede' },
         { x: 1, y: 1, z: 1, tipo: 'parede' },
         { x: 2, y: 1, z: 1, tipo: 'parede' },
         { x: 3, y: 1, z: 1, tipo: 'parede' },
         { x: 4, y: 1, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 1, z: 2, tipo: 'parede' },
         { x: 1, y: 1, z: 2, tipo: 'parede' },
         { x: 2, y: 1, z: 2, tipo: 'parede' },
         { x: 3, y: 1, z: 2, tipo: 'parede' },
         { x: 4, y: 1, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 1, z: 3, tipo: 'parede' },
         { x: 1, y: 1, z: 3, tipo: 'parede' },
         { x: 2, y: 1, z: 3, tipo: 'parede' },
         { x: 3, y: 1, z: 3, tipo: 'parede' },
         { x: 4, y: 1, z: 3, tipo: 'chao' },
-      /* ---- z = 4 ---- */
+        /* ---- z = 4 ---- */
         { x: 0, y: 1, z: 4, tipo: 'chao' },
         { x: 1, y: 1, z: 4, tipo: 'chao' },
         { x: 2, y: 1, z: 4, tipo: 'chao' },
         { x: 3, y: 1, z: 4, tipo: 'chao' },
         { x: 4, y: 1, z: 4, tipo: 'chao' },
-      /* ---- z = 0 ---- */
+        /* ---- z = 0 ---- */
         { x: 0, y: 2, z: 0, tipo: 'parede' },
         { x: 1, y: 2, z: 0, tipo: 'parede' },
         { x: 2, y: 2, z: 0, tipo: 'parede' },
         { x: 3, y: 2, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 2, z: 1, tipo: 'parede' },
         { x: 1, y: 2, z: 1, tipo: 'parede' },
         { x: 2, y: 2, z: 1, tipo: 'parede' },
         { x: 3, y: 2, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 2, z: 2, tipo: 'parede' },
         { x: 1, y: 2, z: 2, tipo: 'parede' },
         { x: 2, y: 2, z: 2, tipo: 'parede' },
         { x: 3, y: 2, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
+        /* ---- z = 3 ---- */
         { x: 0, y: 2, z: 3, tipo: 'chao' },
         { x: 1, y: 2, z: 3, tipo: 'chao' },
         { x: 2, y: 2, z: 3, tipo: 'chao' },
         { x: 3, y: 2, z: 3, tipo: 'chao' },
-      /* ---- z = 0 ---- */
+        /* ---- z = 0 ---- */
         { x: 0, y: 3, z: 0, tipo: 'parede' },
         { x: 1, y: 3, z: 0, tipo: 'parede' },
         { x: 2, y: 3, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 3, z: 1, tipo: 'parede' },
         { x: 1, y: 3, z: 1, tipo: 'parede' },
         { x: 2, y: 3, z: 1, tipo: 'chao' },
-      /* ---- z = 2 ---- */
+        /* ---- z = 2 ---- */
         { x: 0, y: 3, z: 2, tipo: 'chao' },
         { x: 1, y: 3, z: 2, tipo: 'chao' },
         { x: 2, y: 3, z: 2, tipo: 'chao' },
-      /* ---- z = 0 ---- */
+        /* ---- z = 0 ---- */
         { x: 0, y: 4, z: 0, tipo: 'parede' },
         { x: 1, y: 4, z: 0, tipo: 'chao' },
-      /* ---- z = 1 ---- */
+        /* ---- z = 1 ---- */
         { x: 0, y: 4, z: 1, tipo: 'chao' },
         { x: 1, y: 4, z: 1, tipo: 'chao' },
-        ]
-      }
+      ]
+    },
+
+    {
+      nome: 'Fase 6 — Dois Mundos',
+      moedas: 3, distanciaMoedas: 3,
+      blocos: [
+        /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao' },
+        { x: 1, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 0, z: 0, tipo: 'chao' },
+        { x: 3, y: 0, z: 0, tipo: 'chao' },
+        /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 1, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'chao' },
+        /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 3, y: 0, z: 2, tipo: 'chao' },
+        /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
+        { x: 3, y: 0, z: 3, tipo: 'chao' },
+        /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'spawn' },
+        { x: 1, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },
+        /* ---- z = 0 ---- */
+        { x: 7, y: 0, z: 0, tipo: 'chao' },
+        { x: 8, y: 0, z: 0, tipo: 'chao' },
+        /* ---- z = 1 ---- */
+        { x: 7, y: 0, z: 1, tipo: 'chao' },
+        { x: 8, y: 0, z: 1, tipo: 'chao' },
+        /* ---- z = 2 ---- */
+        { x: 7, y: 0, z: 2, tipo: 'chao' },
+        { x: 8, y: 0, z: 2, tipo: 'chao' },
+        /* ---- z = 3 ---- */
+        { x: 7, y: 0, z: 3, tipo: 'chao' },
+        { x: 8, y: 0, z: 3, tipo: 'chao' },
+        /* ---- z = 4 ---- */
+        { x: 7, y: 0, z: 4, tipo: 'chao' },
+        { x: 8, y: 0, z: 4, tipo: 'chao' },
+        /* ---- z = 0 ---- */
+        { x: 7, y: 1, z: 0, tipo: 'chao' },
+        { x: 8, y: 1, z: 0, tipo: 'chao' },
+        /* ---- z = 2 ---- */
+        { x: 4, y: 0, z: 2, tipo: 'elevador',
+          elev: { eixo: 'x', para: { x: 6, y: 0, z: 2 } } },
+      ]
+    },
+
+    {
+      nome: 'Fase 7 — O Poço',
+      moedas: 3, distanciaMoedas: 2,
+      blocos: [
+        /* ---- z = 0 ---- */
+        { x: 0, y: 0, z: 0, tipo: 'chao' },
+        { x: 1, y: 0, z: 0, tipo: 'chao' },
+        { x: 2, y: 0, z: 0, tipo: 'chao' },
+        { x: 3, y: 0, z: 0, tipo: 'chao' },
+        { x: 4, y: 0, z: 0, tipo: 'chao' },
+        /* ---- z = 1 ---- */
+        { x: 0, y: 0, z: 1, tipo: 'chao' },
+        { x: 1, y: 0, z: 1, tipo: 'chao' },
+        { x: 2, y: 0, z: 1, tipo: 'chao' },
+        { x: 3, y: 0, z: 1, tipo: 'chao' },
+        { x: 4, y: 0, z: 1, tipo: 'chao' },
+        /* ---- z = 2 ---- */
+        { x: 0, y: 0, z: 2, tipo: 'chao' },
+        { x: 1, y: 0, z: 2, tipo: 'chao' },
+        { x: 2, y: 0, z: 2, tipo: 'chao' },
+        { x: 3, y: 0, z: 2, tipo: 'chao' },
+        { x: 4, y: 0, z: 2, tipo: 'chao' },
+        /* ---- z = 3 ---- */
+        { x: 0, y: 0, z: 3, tipo: 'chao' },
+        { x: 1, y: 0, z: 3, tipo: 'chao' },
+        { x: 2, y: 0, z: 3, tipo: 'chao' },
+        { x: 3, y: 0, z: 3, tipo: 'spawn' },
+        { x: 4, y: 0, z: 3, tipo: 'chao' },
+        /* ---- z = 4 ---- */
+        { x: 0, y: 0, z: 4, tipo: 'chao' },
+        { x: 1, y: 0, z: 4, tipo: 'chao' },
+        { x: 2, y: 0, z: 4, tipo: 'chao' },
+        { x: 3, y: 0, z: 4, tipo: 'chao' },
+        { x: 4, y: 0, z: 4, tipo: 'chao' },
+        /* ---- z = 0 ---- */
+        { x: 0, y: 1, z: 0, tipo: 'elevador',
+          elev: { eixo: 'y', para: { x: 0, y: 4, z: 0 } } },
+        /* ---- z = 1 ---- */
+        { x: 0, y: 1, z: 1, tipo: 'parede' },
+        { x: 1, y: 1, z: 1, tipo: 'parede' },
+        { x: 2, y: 1, z: 1, tipo: 'parede' },
+        { x: 0, y: 2, z: 1, tipo: 'parede' },
+        { x: 1, y: 2, z: 1, tipo: 'parede' },
+        { x: 2, y: 2, z: 1, tipo: 'parede' },
+        { x: 0, y: 3, z: 1, tipo: 'parede' },
+        { x: 1, y: 3, z: 1, tipo: 'parede' },
+        { x: 2, y: 3, z: 1, tipo: 'parede' },
+        { x: 0, y: 4, z: 1, tipo: 'chao' },
+        { x: 1, y: 4, z: 1, tipo: 'chao' },
+        { x: 2, y: 4, z: 1, tipo: 'chao' },
+      ]
+    }
   ];
 
   let indiceNivel = 0;
@@ -1382,6 +1481,39 @@
     if (!estado.passo) proximoPasso();
   }
 
+  /** Existe caminho A PÉ (sem elevador) de um bloco até uma célula? */
+  function alcancaAPe(de, celula) {
+    const alvo = chave(celula.x, celula.y, celula.z);
+    const ant = new Set([chave(de.x, de.y, de.z)]);
+    const fila = [de];
+    while (fila.length) {
+      const atual = fila.shift();
+      if (chave(atual.x, atual.y, atual.z) === alvo) return true;
+      for (const v of grade.vizinhos(atual)) {
+        const k = chave(v.x, v.y, v.z);
+        if (!ant.has(k)) { ant.add(k); fila.push(v); }
+      }
+    }
+    return false;
+  }
+
+  /** Quando o destino só é alcançável de elevador, devolve a célula de embarque
+      (um vizinho do elevador que dá para alcançar a pé). */
+  function celulaDeEmbarque(destino) {
+    const atual = estado.blocoAtual;
+    for (const e of grade.lista) {
+      if (!e.elev) continue;
+      const ladoLa = { x: e.elev.para.x, y: e.elev.para.y, z: e.elev.para.z };
+      // o destino tem de ser alcançável a pé do "lado de lá"...
+      if (!alcancaAPe(ladoLa, destino)) continue;
+      // ...e nós temos de estar do "lado de cá"
+      if (alcancaAPe(ladoLa, atual)) continue;
+      const celula = grade.vizinhos(e).find(v => alcancaAPe(atual, v));
+      if (celula) return celula;
+    }
+    return null;
+  }
+
   function proximoPasso() {
     const destino = estado.fila.shift();
     if (!destino) return;
@@ -1473,7 +1605,15 @@
     if (!TIPOS_ANDAVEIS.has(b.tipo)) { avisar('Esse bloco não é caminhável 🚧'); return; }
 
     if (CONFIG.permitirCliqueDistante) {
-      const caminho = grade.rota(estado.blocoAtual, b);
+      let caminho = grade.rota(estado.blocoAtual, b);
+      // não dá a pé? talvez só dê de elevador: manda para a célula de embarque
+      if ((!caminho || !caminho.length) && !viajandoDeElevador()) {
+        const embarque = celulaDeEmbarque(b);
+        if (embarque) {
+          avisar('🛗 Só dá de elevador — indo para a plataforma');
+          caminho = grade.rota(estado.blocoAtual, embarque);
+        }
+      }
       if (!caminho || !caminho.length) { avisar('Não existe caminho até lá 🚫'); return; }
       definirRota(caminho);
     } else {

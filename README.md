@@ -98,9 +98,33 @@ blocos adjacentes, mude `permitirCliqueDistante` para `false` em `CONFIG`.
 | 3 — A Travessia | horizontal 7×5 | pontes sobre o vazio (lacunas) |
 | 4 — A Escada | **vertical** | escada de 4 andares na borda + mirante no topo |
 | 5 — O Zigurate | **vertical** | pirâmide de 5 andares em espiral |
+| 6 — Dois Mundos | **elevador horizontal** | duas ilhas separadas por um vão de 3 células; tem de pegar o elevador e **esperar** a travessia |
+| 7 — O Poço | **elevador vertical** | o elevador sobe 3 blocos pela borda; embarque, **espere** a subida e desembarque no patamar |
 
-O gerador dessas fases (com validação de conectividade embutida) está em
-`gerar-fases.mjs`: `node gerar-fases.mjs` valida e imprime os arrays prontos.
+### Elevadores
+
+Um bloco `'elevador'` é uma plataforma que vaia entre a posição em que foi
+escrita no mapa e `elev.para`:
+
+```js
+{ x: 4, y: 0, z: 2, tipo: 'elevador',
+  elev: { eixo: 'x', para: { x: 6, y: 0, z: 2 } } }
+```
+
+* o personagem só sobe/desce quando ela está **parada** em uma das pontas;
+* enquanto ela se move, ele é **carregado junto** e não consegue andar
+  (aparece "🛗 Espera o elevador chegar…");
+* ela para ~1,1s em cada ponta (tempo de embarque) e depois volta sozinha;
+* `eixo` é só documentação — o que vale é `para`;
+* `CONFIG.velocidadeElevador` e `CONFIG.esperaElevador` ajustam o ritmo.
+
+Como a rota (busca em largura) não conhece o elevador, clicar num bloco do
+outro lado do vão manda o personagem até a beirada de embarque e avisa
+"🛗 Só dá de elevador".
+
+O pipeline agora é `node gerar-fases.mjs` (valida + escreve
+`fases-geradas.json`) seguido de `node inserir-fases.mjs` (recompõe o `NIVEIS`
+no HTML, preservando a Fase 1). O JSON é a fonte da verdade das fases 2 a 7.
 
 ## Estrutura do código (tudo no mesmo arquivo)
 
@@ -124,8 +148,10 @@ suavidade do giro, margem de enquadramento, alerta nativo etc.).
 Requer Node.js. Duas suítes independentes:
 
 ```bash
-node validar.js              # sintaxe do módulo + sanidade dos dados da fase
-node teste/testar-jogo.mjs   # smoke test: roda o jogo com mock do THREE/DOM
+node validar.js              # sintaxe do módulo + sanidade dos dados das 7 fases
+node teste/randomizacao.mjs  # sorteio de moedas: 120+300 sorteios por fase
+node teste/elevadores.mjs    # embarque, travessia, desembarque e moedas do vão
+node teste/testar-jogo.mjs   # smoke test: bordas, sorteio, câmera, zoom, Q/E, progressão
 ```
 
 `validar.js` confere conectividade (todas as moedas alcançáveis a partir do
