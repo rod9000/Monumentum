@@ -53,7 +53,7 @@ O progresso é salvo no navegador (`localStorage`) — ao reabrir, você continu
   - ⭐ acima de 1,5 × meta (com meta 20: mais de 30 passos).
   As moedas são sorteadas a cada tentativa (em todas as fases), então a meta também muda
   de tentativa para tentativa. Na conclusão aparecem passos, meta, recorde da fase e tempo.
-* **Menu ☰:** lista as fases abertas, com as concluídas marcadas e as estrelas. As
+* **Menu ▦** (entre ◀ e ▶): lista as fases abertas, com as concluídas marcadas e as estrelas. As
   travadas aparecem desabilitadas (abrem ao concluir a anterior).
 * **Som 🔊/🔇:** efeitos sintetizados (passo, moeda, pulo, queda, giro, fase). O som
   começa depois do primeiro toque ou tecla. O mudo fica salvo no navegador.
@@ -241,7 +241,7 @@ O HUD mostra o total como `N/∞`.
 | `src/main.js` | regras do jogo: construção da fase, movimentação, pulo, queda, moedas, conclusão e loop |
 | `src/cena.js` | 3D: renderer, câmera isométrica, luzes e materiais |
 | `src/hud.js` | textos do HUD, avisos, popup de moeda e tela de conclusão |
-| `src/menu.js` | menu de fases (☰) |
+| `src/menu.js` | menu de fases (▦) |
 | `src/som.js` | efeitos sonoros (WebAudio) e mudo salvo |
 | `src/progresso.js` | moedas, fases concluídas, recordes e estrelas (salvos no navegador) |
 | `src/par.js` | meta da fase: menor número de passos até todas as moedas, e as estrelas pela meta |

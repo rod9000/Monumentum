@@ -18,9 +18,10 @@ export function avisar(texto, ms = TOQUE ? 2500 : 1700) {
   temporizadorAviso = setTimeout(() => el.classList.remove('visivel'), ms);
 }
 
-/** Nome da fase com o número: "Fase 2 — O Salão  ·  2/∞". */
-export function atualizarTextoFase(nome, indice) {
-  document.getElementById('nome-fase').textContent = `${nome}  ·  ${indice + 1}/∞`;
+/** Nome da fase com o número e a faixa de dificuldade: "O Salão  ·  2/∞  ·  médio". */
+export function atualizarTextoFase(nome, indice, faixa = null) {
+  const dificuldade = faixa ? `  ·  ${faixa}` : '';
+  document.getElementById('nome-fase').textContent = `${nome}  ·  ${indice + 1}/∞${dificuldade}`;
 }
 
 /** Contadores do topo: moedas desta fase, saldo salvo (+ o que está em jogo) e passos. */

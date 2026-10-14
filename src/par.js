@@ -9,7 +9,10 @@
    - giros da câmera não contam (o par assume todas as pontes alinhadas).
    A ordem das moedas é a de menor total (programação dinâmica sobre os conjuntos).
    ============================================================================ */
-import { chave, TIPOS_ANDAVEIS, ALCANCE_PULO } from './grade.js';
+import { Grade, chave, TIPOS_ANDAVEIS, ALCANCE_PULO } from './grade.js';
+import { clonarBloco, iniciarElevador } from './elevadores.js';
+import { sortearMoedas } from './moedas.js';
+import { CONFIG } from './config.js';
 
 const DIRECOES = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LIMITE_DP = 14;        // acima disso usa a ordem gulosa (rápido, quase ótimo)
@@ -162,4 +165,52 @@ export function calcularPar(grade) {
     }
   }
   return { par: Number.isFinite(total) ? total : null, passosPorMoeda };
+}
+
+/* ============================================================================
+   NOTA DE DIFICULDADE — média do par sobre sorteios de moedas.
+   ----------------------------------------------------------------------------
+   As moedas são sorteadas a cada carregamento, então o par de um mesmo mapa muda
+   (na medição, cerca de 34 passos em média). Para a nota ser estável, ela usa
+   sementes fixas (1 a 30) só para medir: o jogo continua sorteando de verdade.
+   ============================================================================ */
+export const SORTEIOS_DA_NOTA = 30;
+
+/** Nota de uma fase (`dados` no formato de `materializarNivel`): { media, min, max, amostras }.
+    Não altera `dados`: cada sorteio trabalha com cópias dos blocos. Fase com moedas
+    fixas, ou com semente própria, tem um único layout: uma conta basta. */
+export function notaDeDificuldade(dados) {
+  const amostras = dados.moedasFixas || dados.seed != null ? 1 : SORTEIOS_DA_NOTA;
+  if (!dados.moedas) return { media: null, min: null, max: null, amostras: 0 };
+  const pares = [];
+  for (let s = 1; s <= amostras; s++) {
+    const grade = new Grade(dados.blocos.map(clonarBloco), dados.pontes || []);
+    grade.pontesLivres = CONFIG.pontesSempreAtivas;
+    for (const b of grade.lista) iniciarElevador(b);
+    sortearMoedas(dados, grade, s);
+    const { par } = calcularPar(grade);
+    if (par !== null) pares.push(par);
+  }
+  if (!pares.length) return { media: null, min: null, max: null, amostras };
+  return {
+    media: pares.reduce((a, b) => a + b, 0) / pares.length,
+    min: Math.min(...pares),
+    max: Math.max(...pares),
+    amostras
+  };
+}
+
+/* Faixas da nota: limites dos terços das notas de 500 fases procedurais
+   (`npm run curva-dificuldade`). Nota abaixo de LIMITE_FACIL = fácil; acima de
+   LIMITE_DIFICIL = difícil; no meio = médio. As fases manuais têm nota bem menor
+   (cerca de 11 a 24 passos), então todas caem em "fácil". */
+export const LIMITE_FACIL = 53.1;
+export const LIMITE_DIFICIL = 62.1;
+
+/** Faixa de dificuldade ('fácil' | 'médio' | 'difícil') a partir da média da nota. */
+export function faixaDeDificuldade(media) {
+  if (media === null || media === undefined) return null;
+  if (media < LIMITE_FACIL) return 'fácil';
+  if (media > LIMITE_DIFICIL) return 'difícil';
+  return 'médio';
 }

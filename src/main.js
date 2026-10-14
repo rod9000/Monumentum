@@ -28,7 +28,7 @@ import { montarLoja } from './loja.js';
 import { SKINS } from './skins.js';
 import { criarSom } from './som.js';
 import { criarProgresso, textoEstrelas } from './progresso.js';
-import { calcularPar } from './par.js';
+import { calcularPar, notaDeDificuldade, faixaDeDificuldade } from './par.js';
 
 const TOQUE = ehDispositivoDeToque();       // celular/tablet: D-pad, gestos e layout compacto
 const som = criarSom();
@@ -49,6 +49,8 @@ let totalMoedas = 0;         // moedas desta fase
 let coletadas = 0;           // moedas coletadas nesta tentativa (só valem ao concluir)
 let timersDicas = [];        // dicas agendadas da fase atual (cancelam ao trocar de fase)
 let parDaFase = null;        // { par, passosPorMoeda }: passos do caminho mais curto até todas as moedas
+const faixas = new Map();    // índice da fase -> 'fácil' | 'médio' | 'difícil' (a nota é calculada uma vez)
+let nomeDaFase = '';         // nome da fase atual, para atualizar o HUD quando a faixa ficar pronta
 let ultimo = performance.now();
 
 const RAIO_PERSONAGEM = 0.30;
@@ -266,7 +268,9 @@ function carregarNivel(indice) {
   CONFIG.zoom = 1;               // cada fase começa enquadrada por completo
   totalMoedas = grade.lista.filter(b => b.tipo === 'moeda').length;
   coletadas = 0;
-  atualizarTextoFase(dados.nome, indice);
+  nomeDaFase = dados.nome;
+  atualizarTextoFase(nomeDaFase, indice, faixaDaFase(indice));
+  agendarFaixaAtual();
   atualizarMostrador();
 
   atualizarEnquadramento();
@@ -862,7 +866,11 @@ document.getElementById('btn-som').addEventListener('click', () => {
 });
 
 // menu de fases: abre a grade com as fases abertas e concluídas
-document.getElementById('btn-menu').addEventListener('click', () => menu.abrir(itensMenu()));
+document.getElementById('btn-menu').addEventListener('click', () => {
+  const itens = itensMenu();
+  menu.abrir(itens);
+  completarFaixasDoMenu(itens.map(it => it.indice));
+});
 
 // loja de skins (🎨): as aparências da bola, compradas com as moedas salvas
 document.getElementById('btn-skins').addEventListener('click', () => loja.abrir(itensLoja(), progresso.saldo));
@@ -909,10 +917,47 @@ function itensMenu() {
       indice: i,
       nome: NIVEIS[i]?.nome ?? `Fase ${i + 1} (procedural)`,
       estado: estadoFase,
-      estrelas: rec ? rec.estrelas : 0
+      estrelas: rec ? rec.estrelas : 0,
+      dificuldade: faixaDaFase(i)
     });
   }
   return itens;
+}
+
+/* ---- dificuldade da fase: a nota (média do par sobre sorteios) é calculada uma vez,
+   depois que a fase aparece, para não travar o carregamento ---- */
+function faixaDaFase(indice) {
+  return faixas.get(indice) ?? null;
+}
+
+/** Calcula a faixa de uma fase e guarda (no máximo uma vez por fase). */
+function calcularFaixa(indice) {
+  if (!faixas.has(indice)) {
+    const nota = notaDeDificuldade(materializarNivel(indice));
+    faixas.set(indice, faixaDeDificuldade(nota.media));
+  }
+  return faixas.get(indice);
+}
+
+/** Faixa da fase atual, calculada logo depois que ela aparece. */
+function agendarFaixaAtual() {
+  const indice = indiceNivel;
+  setTimeout(() => {
+    if (indice !== indiceNivel) return;          // a fase mudou nesse meio-tempo
+    atualizarTextoFase(nomeDaFase, indice, calcularFaixa(indice));
+  }, 0);
+}
+
+/** Calcula, uma por vez, as faixas que a lista do menu ainda não tem. */
+function completarFaixasDoMenu(indices) {
+  const pendentes = indices.filter(i => !faixas.has(i));
+  const proxima = () => {
+    const i = pendentes.shift();
+    if (i === undefined) return;
+    menu.atualizarDificuldade(i, calcularFaixa(i));
+    setTimeout(proxima, 0);
+  };
+  setTimeout(proxima, 0);
 }
 
 
