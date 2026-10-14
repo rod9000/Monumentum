@@ -26,6 +26,7 @@ import { avisar, popupMoeda, atualizarTextoFase, atualizarContadores, mostrarCon
 import { montarMenu } from './menu.js';
 import { montarLoja } from './loja.js';
 import { SKINS } from './skins.js';
+import { aplicarAparencia, miniaturaDaSkin } from './aparencia.js';
 import { criarSom } from './som.js';
 import { criarProgresso, textoEstrelas } from './progresso.js';
 import { calcularPar, notaDeDificuldade, faixaDeDificuldade } from './par.js';
@@ -74,15 +75,10 @@ cena.add(personagem);
 
 let rotacaoPersonagemAlvo = 0;
 
-/** Pinta a bola com a skin escolhida (cor, brilho próprio, rugosidade e metal). Os olhos não mudam. */
+/** Pinta a bola com a skin escolhida (cor, brilho, metal e padrão). Os olhos não mudam. */
 function aplicarSkin(id) {
   const s = SKINS.find(x => x.id === id) || SKINS[0];
-  const m = corpo.material;
-  m.color.set(s.cor);
-  m.emissive.set(s.emissiva);
-  m.emissiveIntensity = s.intensidadeEmissiva;
-  m.roughness = s.rugosidade;
-  m.metalness = s.metalico;
+  aplicarAparencia(corpo.material, s);
 }
 aplicarSkin(progresso.skinAtual);
 
@@ -283,8 +279,7 @@ function atualizarMostrador() {
     total: totalMoedas,
     passos: estado.passos,
     par: parDaFase ? parDaFase.par : null,
-    saldo: progresso.saldo,
-    emJogo: estado.concluido ? 0 : coletadas
+    saldo: progresso.saldo
   });
 }
 
@@ -633,7 +628,7 @@ function coletarMoeda(b) {
   som.tocar('moeda');
   atualizarMostrador();
   popupMoeda(b);                         // "+1" sobe da moeda
-  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · saldo ${progresso.saldo + coletadas})`);
+  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · saldo ${progresso.saldo})`);
 
   if (CONFIG.concluirAposTodasAsMoedas && coletadas >= totalMoedas) concluirFase();
   else if (!CONFIG.concluirAposTodasAsMoedas) concluirFase();
@@ -882,7 +877,7 @@ function itensLoja() {
     let estadoSkin = 'sem-saldo';
     if (progresso.possui(s.id)) estadoSkin = progresso.skinAtual === s.id ? 'equipada' : 'possui';
     else if (saldo >= s.preco) estadoSkin = 'comprar';
-    return { id: s.id, nome: s.nome, cor: s.cor, preco: s.preco, estado: estadoSkin, faltam: Math.max(0, s.preco - saldo) };
+    return { id: s.id, nome: s.nome, cor: s.cor, miniatura: miniaturaDaSkin(s), preco: s.preco, estado: estadoSkin, faltam: Math.max(0, s.preco - saldo) };
   });
 }
 
