@@ -24,6 +24,8 @@ import { estado } from './estado.js';
 import { canvas, renderer, cena, camera, alvoCentro, enquadramento, luzSol, GEO_BLOCO, GEO_MOEDA, GEO_BORDAS, MATERIAL_BORDA, MATERIAL, materialMoedaBrilhante, destaque, atualizarCamera, atualizarEnquadramento } from './cena.js';
 import { avisar, popupMoeda, atualizarTextoFase, atualizarContadores, mostrarConclusao, esconderConclusao, atualizarBotaoSom } from './hud.js';
 import { montarMenu } from './menu.js';
+import { montarLoja } from './loja.js';
+import { SKINS } from './skins.js';
 import { criarSom } from './som.js';
 import { criarProgresso, textoEstrelas } from './progresso.js';
 import { calcularPar } from './par.js';
@@ -32,6 +34,7 @@ const TOQUE = ehDispositivoDeToque();       // celular/tablet: D-pad, gestos e l
 const som = criarSom();
 const progresso = criarProgresso();
 const menu = montarMenu({ onEscolher: indice => { carregarNivel(indice); avisar(`Fase ${indice + 1}`); } });
+const loja = montarLoja({ onEscolher: escolherSkin });
 
 
 /* ============================================================================
@@ -68,6 +71,18 @@ for (const lado of [-1, 1]) {
 cena.add(personagem);
 
 let rotacaoPersonagemAlvo = 0;
+
+/** Pinta a bola com a skin escolhida (cor, brilho próprio, rugosidade e metal). Os olhos não mudam. */
+function aplicarSkin(id) {
+  const s = SKINS.find(x => x.id === id) || SKINS[0];
+  const m = corpo.material;
+  m.color.set(s.cor);
+  m.emissive.set(s.emissiva);
+  m.emissiveIntensity = s.intensidadeEmissiva;
+  m.roughness = s.rugosidade;
+  m.metalness = s.metalico;
+}
+aplicarSkin(progresso.skinAtual);
 
 
 /* ============================================================================
@@ -264,7 +279,7 @@ function atualizarMostrador() {
     total: totalMoedas,
     passos: estado.passos,
     par: parDaFase ? parDaFase.par : null,
-    totalSalvo: progresso.total,
+    saldo: progresso.saldo,
     emJogo: estado.concluido ? 0 : coletadas
   });
 }
@@ -614,7 +629,7 @@ function coletarMoeda(b) {
   som.tocar('moeda');
   atualizarMostrador();
   popupMoeda(b);                         // "+1" sobe da moeda
-  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · total ${progresso.total + coletadas})`);
+  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · saldo ${progresso.saldo + coletadas})`);
 
   if (CONFIG.concluirAposTodasAsMoedas && coletadas >= totalMoedas) concluirFase();
   else if (!CONFIG.concluirAposTodasAsMoedas) concluirFase();
@@ -849,6 +864,36 @@ document.getElementById('btn-som').addEventListener('click', () => {
 // menu de fases: abre a grade com as fases abertas e concluídas
 document.getElementById('btn-menu').addEventListener('click', () => menu.abrir(itensMenu()));
 
+// loja de skins (🎨): as aparências da bola, compradas com as moedas salvas
+document.getElementById('btn-skins').addEventListener('click', () => loja.abrir(itensLoja(), progresso.saldo));
+
+/** Itens da loja: cada skin com a situação dela (equipada, já comprada, à venda ou sem saldo). */
+function itensLoja() {
+  const saldo = progresso.saldo;
+  return SKINS.map(s => {
+    let estadoSkin = 'sem-saldo';
+    if (progresso.possui(s.id)) estadoSkin = progresso.skinAtual === s.id ? 'equipada' : 'possui';
+    else if (saldo >= s.preco) estadoSkin = 'comprar';
+    return { id: s.id, nome: s.nome, cor: s.cor, preco: s.preco, estado: estadoSkin, faltam: Math.max(0, s.preco - saldo) };
+  });
+}
+
+/** Toque numa skin da loja: compra (e equipa) se ainda não tem, ou só equipa se já comprou. */
+function escolherSkin(id) {
+  const s = SKINS.find(x => x.id === id);
+  if (progresso.possui(id)) {
+    progresso.equipar(id);
+    avisar(`Skin ${s.nome} equipada`);
+  } else if (progresso.comprar(id, s.preco)) {
+    avisar(`🎨 Skin ${s.nome} comprada e equipada!`);
+  } else {
+    avisar(`Faltam ${s.preco - progresso.saldo} 🪙 para ${s.nome}`);
+  }
+  aplicarSkin(progresso.skinAtual);
+  atualizarMostrador();
+  loja.abrir(itensLoja(), progresso.saldo);
+}
+
 /** Itens do menu: as concluídas (com estrelas), a atual e as abertas; mais duas travadas à frente. */
 function itensMenu() {
   const maior = progresso.maiorConcluida();
@@ -894,7 +939,7 @@ function concluirFase() {
     texto: `Você coletou todas as moedas. Prepare-se para: ${materializarNivel(indiceNivel + 1).nome}`,
     estatisticas: textoEstatisticas(r, tempo),
     proximo: 'Próxima Fase ▶',
-    total: `Total 🪙 ${progresso.total} moedas`
+    total: `Saldo 🪙 ${progresso.saldo} moedas`
   });
 }
 

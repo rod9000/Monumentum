@@ -28,7 +28,7 @@ const gerado = lerRaiz('diorama-puzzle.html');
 ok((gerado.match(/<script type="module">/g) || []).length === 1, 'um único módulo embutido (funciona com duplo clique)');
 ok(!/cdn\.jsdelivr|importmap/.test(gerado), 'o Three.js está dentro do arquivo (sem CDN)');
 ok(gerado.length < 1_500_000, `tamanho razoável (${(gerado.length / 1024).toFixed(0)} KB)`);
-for (const id of ['btn-menu', 'btn-som', 'passos', 'menu-fases', 'grade-fases', 'estatisticas', 'btn-dpad-cima']) {
+for (const id of ['btn-menu', 'btn-skins', 'btn-som', 'passos', 'menu-fases', 'grade-fases', 'painel-skins', 'grade-skins', 'saldo-skins', 'estatisticas', 'btn-dpad-cima']) {
   ok(gerado.includes(`id="${id}"`), `elemento #${id} presente`);
 }
 ok(gerado.includes('<title>Diorama Puzzle</title>'), 'HTML gerado tem o título novo');
