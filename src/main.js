@@ -1,16 +1,16 @@
 /* ============================================================================
-   DIORAMA PUZZLE — ponto de entrada (estilo Captain Toad)
+   DIORAMA PUZZLE — regras do jogo e ligação de tudo (estilo Captain Toad)
    ----------------------------------------------------------------------------
-   Índice:
-     src/config.js ............... parâmetros gerais (CONFIG)
-     src/dados/niveis.js ......... dados das 18 fases manuais (NIVEIS)
-     src/procedural.js ........... fases infinitas depois das manuais
-     src/grade.js ................ regras de caminhada na matriz 3D (Grade)
-     src/elevadores.js ........... dados e movimentação de elevadores
-     src/moedas.js ............... sorteio padronizado de moedas
-     src/aleatorio.js ............ RNG determinístico (semente)
-   Este arquivo (ainda) concentra: cena 3D, personagem, câmera, movimentação,
-   interface (HUD) e o loop principal. O bundle é gerado por `npm run build`.
+   Módulos:
+     config.js ........ parâmetros (CONFIG)              estado.js ..... estado da partida
+     cena.js .......... 3D: câmera, luzes, materiais     hud.js ........ textos, avisos, conclusão
+     menu.js .......... escolha de fase                  som.js ........ sons e mudo (WebAudio)
+     progresso.js ..... moedas, recordes e estrelas      toque.js ...... gestos e D-pad
+     grade.js ......... caminhada na grade (pontes, pulo, elevador)
+     elevadores.js .... movimentação dos elevadores      moedas.js ..... sorteio de moedas
+     dados/niveis.js .. fases manuais                    procedural.js . fases infinitas
+   Este arquivo tem: construção do nível, personagem, movimentação, entrada
+   (teclado, mouse, toque), regras de moedas e fases, e o loop principal.
    ============================================================================ */
 import * as THREE from 'three';
 import { CONFIG } from './config.js';
@@ -19,45 +19,330 @@ import { Grade, chave, elevadorParado, TIPOS_ANDAVEIS, quadranteAssentado, quadr
 import { clonarBloco, iniciarElevador, moverBloco } from './elevadores.js';
 import { sortearMoedas } from './moedas.js';
 import { gerarFase } from './procedural.js';
+import { classificarGesto, fatorDePinca, direcaoDoMundo, maisProximoDoToque, ehDispositivoDeToque } from './toque.js';
+import { estado } from './estado.js';
+import { canvas, renderer, cena, camera, alvoCentro, enquadramento, luzSol, GEO_BLOCO, GEO_MOEDA, GEO_BORDAS, MATERIAL_BORDA, MATERIAL, materialMoedaBrilhante, destaque, atualizarCamera, atualizarEnquadramento } from './cena.js';
+import { avisar, popupMoeda, atualizarTextoFase, atualizarContadores, mostrarConclusao, esconderConclusao, atualizarBotaoSom } from './hud.js';
+import { montarMenu } from './menu.js';
+import { criarSom } from './som.js';
+import { criarProgresso, textoEstrelas } from './progresso.js';
+import { calcularPar } from './par.js';
+
+const TOQUE = ehDispositivoDeToque();       // celular/tablet: D-pad, gestos e layout compacto
+const som = criarSom();
+const progresso = criarProgresso();
+const menu = montarMenu({ onEscolher: indice => { carregarNivel(indice); avisar(`Fase ${indice + 1}`); } });
 
 
 /* ============================================================================
-   DIORAMA PUZZLE — protótipo de puzzle 3D em grade (estilo Captain Toad)
-   ----------------------------------------------------------------------------
-   Índice:
-     1) DADOS DAS FASES ............ onde criar a Fase 2, 3, 4...
-     2) SISTEMA DE GRADE ........... regras de caminhada na matriz 3D
-     3) CENA, CÂMERA E LUZES ....... visual de diorama (ortográfica + sombras)
-     4) CONSTRUÇÃO DO NÍVEL ........ dados -> blocos 3D
-     5) PERSONAGEM .................
-     6) CONTROLE DE CÂMERA ......... giro de 90° com interpolação suave
-     7) MOVIMENTAÇÃO ............... raycast + grade + animação
-     8) INTERFACE (HUD) ............
-     9) LOOP PRINCIPAL .............
+   ESTADO DA PARTIDA
    ============================================================================ */
-
-
-/* ============================================================================
-   1) DADOS DAS FASES
-   ----------------------------------------------------------------------------
-   Cada bloco é um objeto { x, y, z, tipo }:
-      x -> leste (+) / oeste (-)
-      y -> altura (0 = chão)
-      z -> sul (+) / norte (-)
-   Tipos disponíveis:
-      'chao'   -> piso por onde o personagem anda
-      'parede' -> bloqueio (não dá para subir)
-      'moeda'  -> piso com moeda: coletada quando o personagem passa por cima
-      'spawn'  -> onde o personagem começa (também é um piso)
-
-   >>> PARA CRIAR A FASE 2: copie o objeto inteiro abaixo, mude o "nome" e
-   >>> desenhe um novo array de blocos. Nenhuma outra parte do código precisa
-   >>> ser alterada (a câmera se enquadra sozinha no tamanho do mapa).
-   ============================================================================ */
-
 let indiceNivel = 0;
+let grade = null;            // Grade do nível atual
+let grupoNivel = null;       // grupo com todos os blocos do nível
+let tilesRaycast = [];       // malhas testadas no raycast
+let spawn = null;
+let totalMoedas = 0;         // moedas desta fase
+let coletadas = 0;           // moedas coletadas nesta tentativa (só valem ao concluir)
+let timersDicas = [];        // dicas agendadas da fase atual (cancelam ao trocar de fase)
+let parDaFase = null;        // { par, passosPorMoeda }: passos do caminho mais curto até todas as moedas
+let ultimo = performance.now();
+
+const RAIO_PERSONAGEM = 0.30;
+
+/* ---- personagem (grupo) ---- */
+const personagem = new THREE.Group();
+const corpo = new THREE.Mesh(
+  new THREE.SphereGeometry(RAIO_PERSONAGEM, 28, 20),
+  new THREE.MeshStandardMaterial({ color: 0xff7043, roughness: .5, metalness: .05 })
+);
+corpo.castShadow = true;
+personagem.add(corpo);
+
+const materialOlho = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .4 });
+for (const lado of [-1, 1]) {
+  const olho = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 10), materialOlho);
+  olho.position.set(0.105 * lado, 0.09, 0.275);
+  personagem.add(olho);
+}
+cena.add(personagem);
+
+let rotacaoPersonagemAlvo = 0;
 
 
+/* ============================================================================
+   1) DADOS DAS FASES E CONSTRUÇÃO DO NÍVEL
+   Cada bloco é um objeto { x, y, z, tipo }: x leste (+), y altura (0 = chão),
+   z sul (+). Tipos: 'chao', 'parede', 'moeda', 'spawn', 'elevador', 'pulo'.
+   As fases ficam em src/dados/niveis.js (manuais) e em src/procedural.js.
+   ============================================================================ */
+
+/** Devolve uma CÓPIA dos dados de uma fase. O jogo muta os blocos durante a
+ *  partida (moedas coletadas, estado dos elevadores), então os dados em
+ *  NIVEIS precisam continuar intactos entre uma partida e outra. */
+function materializarNivel(indice) {
+  // fases manuais (NIVEIS) e, depois delas, fases procedurais infinitas
+  const n = indice < NIVEIS.length ? NIVEIS[indice] : gerarFase(indice);
+  return {
+    nome: n.nome,
+    moedas: n.moedas ?? 0,
+    distanciaMoedas: n.distanciaMoedas ?? 3,
+    distanciaEntreMoedas: n.distanciaEntreMoedas,
+    moedasFixas: n.moedasFixas,
+    seed: n.seed,
+    pontes: n.pontes || [],
+    blocos: (n.blocos || []).map(clonarBloco)
+  };
+}
+
+/** Carrega a fase `indice`. Qualquer partida anterior (esperas, setas, dicas,
+ *  moedas da tentativa) é descartada: a fase começa do zero. */
+function carregarNivel(indice) {
+  indiceNivel = indice;
+  estado.geracao++;                             // cancela esperas e quedas da fase anterior
+  if (estado.setaPulo) clearTimeout(estado.setaPulo.timer);
+  estado.setaPulo = null;
+  estado.aguardandoPonte = null;
+  estado.caindo = false;
+  timersDicas.forEach(clearTimeout);
+  timersDicas = [];
+
+  const dados = materializarNivel(indice);
+
+  // limpa o nível anterior
+  if (grupoNivel) {
+    cena.remove(grupoNivel);
+    grupoNivel.traverse(o => {
+      if (o.isMesh) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach(m => { if (m && !m.userData.compartilhado) m.dispose(); });
+      }
+    });
+  }
+
+  grupoNivel = new THREE.Group();
+  cena.add(grupoNivel);
+  tilesRaycast = [];
+  pontesVisuais = [];
+
+  // ---- grade com os dados da fase (cópia: o jogo muta os blocos) ----
+  grade = new Grade(dados.blocos.map(clonarBloco), dados.pontes);
+  grade.pontesLivres = CONFIG.pontesSempreAtivas;
+  for (const b of grade.lista) iniciarElevador(b);
+
+  // ---- moedas: sorteio padronizado (ver sortearMoedas) ----
+  sortearMoedas(dados, grade);
+  parDaFase = calcularPar(grade);             // meta da fase: o caminho mais curto até todas as moedas
+
+  // ---- limites (centro e tamanho do diorama) ----
+  const min = { x: Infinity, y: Infinity, z: Infinity };
+  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
+  for (const b of grade.lista) {
+    min.x = Math.min(min.x, b.x); max.x = Math.max(max.x, b.x);
+    min.y = Math.min(min.y, b.y); max.y = Math.max(max.y, b.y);
+    min.z = Math.min(min.z, b.z); max.z = Math.max(max.z, b.z);
+  }
+  const tam = {
+    x: (max.x - min.x + 1) + 0.8,   // + base (plinto)
+    y: (max.y - min.y + 1) + 0.6,
+    z: (max.z - min.z + 1) + 0.8
+  };
+  alvoCentro.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
+  // raio da esfera que envolve o diorama -> usado pra enquadrar a câmera
+  enquadramento.raio = 0.5 * Math.sqrt(tam.x ** 2 + tam.y ** 2 + tam.z ** 2) + 0.3;
+
+  // ---- sol posicionado em relação ao centro do nível ----
+  // (a área da sombra cresce junto com o mapa, para não "cortar" sombras)
+  luzSol.position.set(alvoCentro.x + 7, alvoCentro.y + 13, alvoCentro.z + 6);
+  luzSol.target.position.copy(alvoCentro);
+  const s = enquadramento.raio * 1.6;
+  Object.assign(luzSol.shadow.camera, {
+    left: -s, right: s, top: s, bottom: -s,
+    near: 1, far: enquadramento.raio * 4 + 40
+  });
+  luzSol.shadow.camera.updateProjectionMatrix();
+
+  // ---- base/plinto do diorama (a "maquete") ----
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(tam.x, 0.5, tam.z),
+    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 })
+  );
+  base.position.set(alvoCentro.x, min.y - 0.75, alvoCentro.z);
+  base.castShadow = true;
+  base.receiveShadow = true;
+  grupoNivel.add(base);
+  if (CONFIG.mostrarBordas) {
+    const bordaBase = new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA);
+    bordaBase.scale.set(tam.x, 0.5, tam.z);   // mesma geometria, escala do plinto
+    base.add(bordaBase);
+  }
+
+  // ---- blocos ----
+  // o spawn é resolvido ANTES do loop porque a animação de surgimento das
+  // moedas usa a distância até ele
+  const spawnLocal = grade.lista.find(b => b.tipo === 'spawn') || grade.lista[0];
+  for (const b of grade.lista) {
+    if (b.tipo === 'ponte') continue;       // placas: malha própria (criarPontes)
+    const malha = new THREE.Mesh(GEO_BLOCO, MATERIAL[b.tipo] || MATERIAL.chao);
+    malha.position.set(b.x, b.y, b.z);
+    malha.castShadow = true;      // projeta sombra
+    malha.receiveShadow = true;   // recebe sombra dos outros blocos
+    malha.userData.bloco = b;     // <-- ligação malha <-> dado da fase
+    b.malha = malha;
+    grupoNivel.add(malha);
+    tilesRaycast.push(malha);
+    if (b.tipo === 'pulo') {                  // marcador de pulo: quadrado com círculo
+      const quadrado = new THREE.Mesh(GEO_MARCADOR, MATERIAL_MARCADOR);
+      quadrado.position.set(0, 0.52, 0);
+      const anel = new THREE.Mesh(GEO_ANEL_MARCADOR, MATERIAL_ANEL_MARCADOR);
+      anel.rotation.x = -Math.PI / 2;
+      anel.position.set(0, 0.56, 0);
+      malha.add(quadrado, anel);
+    }
+
+    // borda (contorno) do bloco — filha da malha, não entra no raycast
+    if (CONFIG.mostrarBordas) {
+      malha.add(new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA));
+    }
+
+    // moeda flutuando sobre o bloco 'moeda'
+    if (b.tipo === 'moeda') {
+      const moeda = new THREE.Mesh(GEO_MOEDA, materialMoedaBrilhante());
+      moeda.position.set(0, 0.78, 0);
+      moeda.castShadow = true;
+      moeda.scale.setScalar(0.001);         // começa invisível: vai "surgir"
+      b.moeda = moeda;
+      b.faseMoeda = Math.random() * Math.PI * 2;
+      malha.add(moeda);           // filha do bloco (não entra no raycast)
+
+      // animação de surgimento: pop com atraso conforme a distância do spawn
+      const passos = Math.abs(b.x - spawnLocal.x) + Math.abs(b.y - spawnLocal.y) + Math.abs(b.z - spawnLocal.z);
+      tween(0.42, p => {
+        // 0 → 1,15 → 1 (estufa e volta)
+        const escala = p < 0.7 ? (p / 0.7) * 1.15 : 1.15 - ((p - 0.7) / 0.3) * 0.15;
+        moeda.scale.setScalar(Math.max(0.001, escala));
+      }, null, passos * 0.045, moeda);
+    }
+  }
+
+  criarPontes(dados.pontes);
+
+  // ---- dicas da fase (uma vez por carregamento; cancelam ao trocar de fase) ----
+  const dicas = [];
+  if (dados.pontes.length) dicas.push('🔭 Esta fase tem pontes: gire a câmera (Q/E) até as placas acenderem');
+  if (dados.blocos.some(b => b.tipo === 'pulo')) dicas.push('🦘 Bloco de pulo: aperte a seta 2× na direção do outro bloco (o par volta)');
+  dicas.forEach((texto, i) => timersDicas.push(setTimeout(() => avisar(texto, 4000), 300 + i * 4300)));
+
+  // ---- personagem no spawn ----
+  spawn = spawnLocal;                 // já resolvido acima (usado pelas moedas)
+  estado.blocoAtual = spawn;
+  estado.passo = null;
+  estado.fila = [];
+  estado.concluido = false;
+  estado.passos = 0;                  // nova tentativa: pontuação do zero
+  estado.inicioMs = performance.now();
+  personagem.position.copy(posicaoNoBloco(spawn));
+  personagem.scale.setScalar(1);
+  personagem.visible = true;
+  destaque.visible = false;
+  esconderConclusao();
+
+  // ---- HUD ----
+  CONFIG.zoom = 1;               // cada fase começa enquadrada por completo
+  totalMoedas = grade.lista.filter(b => b.tipo === 'moeda').length;
+  coletadas = 0;
+  atualizarTextoFase(dados.nome, indice);
+  atualizarMostrador();
+
+  atualizarEnquadramento();
+}
+
+/** Mostra moedas e passos. O total salvo mais o que está em jogo nesta tentativa. */
+function atualizarMostrador() {
+  atualizarContadores({
+    coletadas,
+    total: totalMoedas,
+    passos: estado.passos,
+    par: parDaFase ? parDaFase.par : null,
+    totalSalvo: progresso.total,
+    emJogo: estado.concluido ? 0 : coletadas
+  });
+}
+
+
+/* ============================================================================
+   2) PONTES DE CÂMERA (placas andáveis no vão, acesas quando ativa)
+   ============================================================================ */
+const COR_PONTE = new THREE.Color(0xe9d8b4);
+let pontesVisuais = [];                            // { ponte, material } do nível atual
+const GEO_PLACA = new THREE.BoxGeometry(0.9, 0.06, 0.9);   // quadrado fino
+const GEO_MARCADOR = new THREE.BoxGeometry(0.46, 0.04, 0.46);      // marcador de pulo: quadrado...
+const MATERIAL_MARCADOR = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
+const GEO_ANEL_MARCADOR = new THREE.RingGeometry(0.1, 0.16, 24);   // ...com um círculo dentro
+const MATERIAL_ANEL_MARCADOR = new THREE.MeshBasicMaterial({ color: 0x1f2937 });
+
+function criarPontes(pontes = []) {
+  for (const p of pontes) {
+    const material = new THREE.MeshStandardMaterial({ color: COR_PONTE, roughness: .6, transparent: true, opacity: .25 });
+    // uma placa por célula do vão: é a própria célula da grade (andável com a câmera alinhada)
+    for (const c of placasDaPonte(p)) {
+      const placa = new THREE.Mesh(GEO_PLACA, material);
+      placa.position.set(c.x, c.y + 0.47, c.z);     // topo rente ao topo dos blocos
+      const bloco = grade.obter(c.x, c.y, c.z);
+      placa.userData.bloco = bloco;
+      bloco.malha = placa;
+      tilesRaycast.push(placa);
+      grupoNivel.add(placa);
+    }
+    pontesVisuais.push({ ponte: p, material });
+  }
+}
+
+function atualizarPontes() {
+  for (const { ponte, material } of pontesVisuais) {
+    material.opacity = grade.ponteAtiva(ponte) ? 1 : 0.25;
+  }
+}
+
+/** Texto de quantos giros e para que lado (Q/E) ativam a ponte de `angulo`. */
+function dicaGiro(angulo) {
+  const g = giroNecessario(quadranteAlvo(estado.giroAlvo), angulo);
+  if (!g.vezes) return 'a ponte já está alinhada';
+  const tecla = g.lado === 'direita' ? 'DIREITA (E)' : 'ESQUERDA (Q)';
+  return `gire ${g.vezes > 1 ? g.vezes + '× ' : ''}para a ${tecla}`;
+}
+
+/** Posição mundial (centro do personagem) em cima de um bloco. */
+function posicaoNoBloco(b) {
+  return new THREE.Vector3(b.x, b.y + 0.5 + RAIO_PERSONAGEM + 0.02, b.z);
+}
+
+
+/* ============================================================================
+   3) CONTROLE DE CÂMERA — giro em passos de 90° e zoom
+   ============================================================================ */
+function girar(direcao) {                 // -1 = esquerda, +1 = direita
+  estado.giroAlvo += direcao * Math.PI / 2;
+  som.tocar('giro');
+}
+
+/** Aproxima/afasta a câmera sem sair dos limites. */
+function ajustarZoom(fator, silencioso = false) {
+  CONFIG.zoom = Math.min(CONFIG.zoomMax, Math.max(CONFIG.zoomMin, CONFIG.zoom * fator));
+  atualizarEnquadramento();
+  if (!silencioso) avisar(`Zoom ${Math.round(CONFIG.zoom * 100)}%`);
+}
+
+// roda do mouse aproxima/afasta (passive:false para poder prevenir o scroll)
+canvas.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  ajustarZoom(ev.deltaY > 0 ? 0.9 : 1.1);
+}, { passive: false });
+
+
+/* ============================================================================
+   4) ELEVADORES (atualização por quadro)
+   ============================================================================ */
 function atualizarElevadores(dt) {
   for (const e of grade.lista) {
     if (!e.elev) continue;
@@ -102,410 +387,8 @@ const viajandoDeElevador = () => {
 };
 
 
-
-
-
 /* ============================================================================
-   3) CENA, CÂMERA ORTOGRÁFICA E LUZES  (visual de diorama)
-   ============================================================================ */
-const canvas = document.getElementById('palco');
-
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;                       // sombras ativadas
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;        // sombra suave
-
-const cena = new THREE.Scene();
-cena.background = new THREE.Color(0xbfe3f2);             // céu clarinho
-
-/* ---- CÂMERA ISOMÉTRICA ----------------------------------------------------
-   OrthographicCamera = sem perspectiva: todos os blocos têm o MESMO tamanho
-   na tela, independentemente da distância (isometria perfeita).
-   A câmera orbita o centro do nível a um raio fixo, com a elevação clássica
-   de 35,26° (arctg(1/√2)) — o ângulo isométrico "verdadeiro".            */
-const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 500);
-const ELEVACAO   = Math.atan(1 / Math.sqrt(2));   // ≈ 35,26°
-const RAIO_ORBITA = 90;                          // distância fictícia da órbita
-
-let alvoCentro = new THREE.Vector3();            // centro do diorama na tela
-let raioNivel  = 5;                              // raio p/ enquadramento automático
-
-/* ---- LUZES ---------------------------------------------------------------
-   Ambiente: lá de cima e de baixo (aspecto cartoon, sem sombra dura).
-   Direcional: o "sol", com Shadow Map.                                */
-const luzAmbiente = new THREE.AmbientLight(0xffffff, 0.55);
-
-const luzSol = new THREE.DirectionalLight(0xfff3dd, 1.55);
-luzSol.castShadow = true;
-luzSol.shadow.mapSize.set(2048, 2048);
-luzSol.shadow.bias = -0.0007;          // evita "shadow acne"
-luzSol.shadow.normalBias = 0.02;
-
-const luzPreenchimento = new THREE.DirectionalLight(0xcfe2ff, 0.35);
-luzPreenchimento.position.set(-8, 5, -6);
-
-cena.add(luzAmbiente, luzSol, luzSol.target, luzPreenchimento);
-
-
-/* ---- MATERIAIS E GEOMETRIAS COMPARTILHADOS -------------------------------- */
-const GEO_BLOCO = new THREE.BoxGeometry(1, 1, 1);
-const GEO_MOEDA = new THREE.CylinderGeometry(0.30, 0.30, 0.07, 28);
-GEO_MOEDA.rotateX(Math.PI / 2);        // moeda "em pé", girando no eixo Y
-
-// BORDA de cada bloco: arestas do cubo (LineSegments é filho do tile, então
-// não interfere no raycast, que não é recursivo)
-const GEO_BORDAS = new THREE.EdgesGeometry(GEO_BLOCO);
-const MATERIAL_BORDA = new THREE.LineBasicMaterial({
-  color: 0x1c2b1c, transparent: true, opacity: .38
-});
-MATERIAL_BORDA.userData.compartilhado = true;
-
-function padrao(corTopo, corLado, extra = {}) {
-  const cima  = new THREE.MeshStandardMaterial({ color: corTopo, roughness: .9,  metalness: 0, ...extra });
-  const lados = new THREE.MeshStandardMaterial({ color: corLado, roughness: .95, metalness: 0, ...extra });
-  // Ordem das faces do BoxGeometry: +X, -X, +Y(topo), -Y, +Z, -Z
-  return [lados, lados, cima, lados, lados, lados];
-}
-
-const MATERIAL = {
-  chao:   padrao(0x8ed679, 0x6aa84f),
-  parede: padrao(0xe8845f, 0xb8553a),
-  moeda:  padrao(0xffd34d, 0xd9a020, { emissive: 0x7a5c00, emissiveIntensity: .5 }),
-  spawn:  padrao(0x9fd9f2, 0x62a8cc),
-  elevador: padrao(0xd7dee6, 0x7f8c9b, { emissive: 0x20303c, emissiveIntensity: .35 })
-};
-for (const k in MATERIAL) MATERIAL[k].forEach(m => (m.userData.compartilhado = true));
-
-function materialMoedaBrilhante() {
-  return new THREE.MeshStandardMaterial({
-    color: 0xffd34d, emissive: 0xffc400, emissiveIntensity: .45,
-    metalness: .6, roughness: .25, transparent: true
-  });
-}
-
-/** Destaque do bloco sob o mouse. */
-const destaque = new THREE.Mesh(
-  new THREE.BoxGeometry(1.05, 1.05, 1.05),
-  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .25, depthWrite: false })
-);
-destaque.visible = false;
-destaque.renderOrder = 2;
-cena.add(destaque);
-
-
-/* ============================================================================
-   ESTADO GLOBAL
-   ============================================================================ */
-
-const RAIO_PERSONAGEM = 0.30;
-
-let grade = null;            // Grade do nível atual
-let grupoNivel = null;       // grupo com todos os blocos do nível
-let tilesRaycast = [];       // malhas testadas no raycast
-let spawn = null;
-
-let totalMoedas = 0;
-let coletadas = 0;
-
-const estado = {
-  giroAtual: 0,          // rotação atual da câmera (radianos)
-  giroAlvo: 0,           // rotação desejada (sempre múltiplo de 90°)
-  passo: null,           // passo em andamento { de, para, bloco, t }
-  fila: [],              // próximos blocos do caminho
-  blocoAtual: null,      // bloco onde o personagem está (ou está indo)
-  concluido: false,
-  caindo: false,         // caiu no vão: a fase está reiniciando
-  aguardandoPonte: null, // { destino, ponte, t }: espera a câmera alinhar
-  setaPulo: null         // seta no marcador esperando a 2ª { t, timer, ix, iz }
-};
-
-/* ---- personagem (grupo) ---- */
-const personagem = new THREE.Group();
-const corpo = new THREE.Mesh(
-  new THREE.SphereGeometry(RAIO_PERSONAGEM, 28, 20),
-  new THREE.MeshStandardMaterial({ color: 0xff7043, roughness: .5, metalness: .05 })
-);
-corpo.castShadow = true;
-personagem.add(corpo);
-
-const materialOlho = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: .4 });
-for (const lado of [-1, 1]) {
-  const olho = new THREE.Mesh(new THREE.SphereGeometry(0.055, 14, 10), materialOlho);
-  olho.position.set(0.105 * lado, 0.09, 0.275);
-  personagem.add(olho);
-}
-cena.add(personagem);
-
-let rotacaoPersonagemAlvo = 0;
-
-
-/* ============================================================================
-   4) CONSTRUÇÃO DO NÍVEL (dados -> blocos 3D)
-   ============================================================================ */
-
-/** Devolve uma CÓPIA dos dados de uma fase. O jogo muta os blocos durante a
- *  partida (moedas coletadas, estado dos elevadores), então os dados em
- *  NIVEIS precisam continuar intactos entre uma partida e outra.
- *  Índice fora da faixa dá a volta (o texto de conclusão olha a próxima). */
-function materializarNivel(indice) {
-  // fases manuais (NIVEIS) e, depois delas, fases procedurais infinitas
-  const n = indice < NIVEIS.length ? NIVEIS[indice] : gerarFase(indice);
-  return {
-    nome: n.nome,
-    moedas: n.moedas ?? 0,
-    distanciaMoedas: n.distanciaMoedas ?? 3,
-    distanciaEntreMoedas: n.distanciaEntreMoedas,
-    moedasFixas: n.moedasFixas,
-    seed: n.seed,
-    pontes: n.pontes || [],
-    blocos: (n.blocos || []).map(clonarBloco)
-  };
-}
-
-function carregarNivel(indice) {
-  indiceNivel = indice;
-  const dados = materializarNivel(indice);
-
-  // limpa o nível anterior
-  if (grupoNivel) {
-    cena.remove(grupoNivel);
-    grupoNivel.traverse(o => {
-      if (o.isMesh) {
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        mats.forEach(m => { if (m && !m.userData.compartilhado) m.dispose(); });
-      }
-    });
-  }
-
-  grupoNivel = new THREE.Group();
-  cena.add(grupoNivel);
-  tilesRaycast = [];
-  pontesVisuais = [];
-
-  // ---- sistema de grade com os dados da fase ----
-  // (cópia profunda dos dados: o jogo MUTA os blocos — moedas coletadas e
-  //  estado dos elevadores — e os dados em NIVEIS precisam continuar intactos)
-  grade = new Grade(dados.blocos.map(clonarBloco), dados.pontes);
-  grade.pontesLivres = CONFIG.pontesSempreAtivas;
-  for (const b of grade.lista) iniciarElevador(b);
-
-  // ---- moedas: sorteio padronizado (ver sortearMoedas) ----
-  sortearMoedas(dados, grade);
-  // ---- limites (centro e tamanho do diorama) ----
-  const min = { x: Infinity, y: Infinity, z: Infinity };
-  const max = { x: -Infinity, y: -Infinity, z: -Infinity };
-  for (const b of grade.lista) {
-    min.x = Math.min(min.x, b.x); max.x = Math.max(max.x, b.x);
-    min.y = Math.min(min.y, b.y); max.y = Math.max(max.y, b.y);
-    min.z = Math.min(min.z, b.z); max.z = Math.max(max.z, b.z);
-  }
-  const tam = {
-    x: (max.x - min.x + 1) + 0.8,   // + base (plinto)
-    y: (max.y - min.y + 1) + 0.6,
-    z: (max.z - min.z + 1) + 0.8
-  };
-  alvoCentro.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
-  // raio da esfera que envolve o diorama -> usado pra enquadrar a câmera
-  raioNivel = 0.5 * Math.sqrt(tam.x ** 2 + tam.y ** 2 + tam.z ** 2) + 0.3;
-
-  // ---- sol posicionado em relação ao centro do nível ----
-  // (a área da sombra cresce junto com o mapa, para não "cortar" sombras)
-  luzSol.position.set(alvoCentro.x + 7, alvoCentro.y + 13, alvoCentro.z + 6);
-  luzSol.target.position.copy(alvoCentro);
-  const s = raioNivel * 1.6;
-  Object.assign(luzSol.shadow.camera, {
-    left: -s, right: s, top: s, bottom: -s,
-    near: 1, far: raioNivel * 4 + 40
-  });
-  luzSol.shadow.camera.updateProjectionMatrix();
-
-  // ---- base/plinto do diorama (a "maquete") ----
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(tam.x, 0.5, tam.z),
-    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 })
-  );
-  base.position.set(alvoCentro.x, min.y - 0.75, alvoCentro.z);
-  base.castShadow = true;
-  base.receiveShadow = true;
-  grupoNivel.add(base);
-  if (CONFIG.mostrarBordas) {
-    const bordaBase = new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA);
-    bordaBase.scale.set(tam.x, 0.5, tam.z);   // mesma geometria, escala do plinto
-    base.add(bordaBase);
-  }
-
-  // ---- blocos ----
-  // o spawn é resolvido ANTES do loop porque a animação de surgimento das
-  // moedas usa a distância até ele
-  const spawnLocal = grade.lista.find(b => b.tipo === 'spawn') || grade.lista[0];
-  for (const b of grade.lista) {
-    if (b.tipo === 'ponte') continue;       // placas: malha própria (criarPontes)
-    const malha = new THREE.Mesh(GEO_BLOCO, MATERIAL[b.tipo] || MATERIAL.chao);
-    malha.position.set(b.x, b.y, b.z);
-    malha.castShadow = true;      // projeta sombra
-    malha.receiveShadow = true;   // recebe sombra dos outros blocos
-    malha.userData.bloco = b;     // <-- ligação mala <-> dado da fase
-    b.malha = malha;
-    grupoNivel.add(malha);
-    tilesRaycast.push(malha);
-    if (b.tipo === 'pulo') {                  // marcador de pulo: quadrado com círculo
-      const quadrado = new THREE.Mesh(GEO_MARCADOR, MATERIAL_MARCADOR);
-      quadrado.position.set(0, 0.52, 0);
-      const anel = new THREE.Mesh(GEO_ANEL_MARCADOR, MATERIAL_ANEL_MARCADOR);
-      anel.rotation.x = -Math.PI / 2;
-      anel.position.set(0, 0.56, 0);
-      malha.add(quadrado, anel);
-    }
-
-    // borda (contorno) do bloco — filha da malha, não entra no raycast
-    if (CONFIG.mostrarBordas) {
-      malha.add(new THREE.LineSegments(GEO_BORDAS, MATERIAL_BORDA));
-    }
-
-    // moeda flutuando sobre o bloco 'moeda'
-    if (b.tipo === 'moeda') {
-      const moeda = new THREE.Mesh(GEO_MOEDA, materialMoedaBrilhante());
-      moeda.position.set(0, 0.78, 0);
-      moeda.castShadow = true;
-      moeda.scale.setScalar(0.001);         // começa invisível: vai "surgir"
-      b.moeda = moeda;
-      b.faseMoeda = Math.random() * Math.PI * 2;
-      malha.add(moeda);           // filha do bloco (não entra no raycast)
-
-      // animação de surgimento: pop com atraso conforme a distância do spawn
-      const passos = Math.abs(b.x - spawnLocal.x) + Math.abs(b.y - spawnLocal.y) + Math.abs(b.z - spawnLocal.z);
-      tween(0.42, p => {
-        // 0 → 1,15 → 1 (estufa e volta)
-        const escala = p < 0.7 ? (p / 0.7) * 1.15 : 1.15 - ((p - 0.7) / 0.3) * 0.15;
-        moeda.scale.setScalar(Math.max(0.001, escala));
-      }, null, passos * 0.045, moeda);
-    }
-  }
-
-  criarPontes(dados.pontes);
-  if (dados.pontes.length) setTimeout(() => avisar('🔭 Esta fase tem pontes: gire a câmera (Q/E) até as placas acenderem', 4000), 300);
-
-  // ---- personagem no spawn ----
-  spawn = spawnLocal;                 // já resolvido acima (usado pelas moedas)
-  estado.blocoAtual = spawn;
-  estado.passo = null;
-  estado.fila = [];
-  estado.concluido = false;
-  personagem.position.copy(posicaoNoBloco(spawn));
-  personagem.scale.setScalar(1);
-  personagem.visible = true;
-  destaque.visible = false;
-  document.getElementById('tela-conclusao').classList.remove('visivel');
-
-  // ---- HUD ----
-  CONFIG.zoom = 1;               // cada fase começa enquadrada por completo
-  totalMoedas = grade.lista.filter(b => b.tipo === 'moeda').length;
-  coletadas = 0;
-  atualizarHUD();
-  atualizarIndicadorFase();
-
-  atualizarEnquadramento();
-}
-
-/** Posição mundial (centro do personagem) em cima de um bloco. */
-/* ---- pontes de câmera: placas quadradas finas no vão (acesas quando ativa) ---- */
-const ANGULOS_TXT = ['0°', '90°', '180°', '270°'];   // quadrantes, para os avisos
-let pontesVisuais = [];                            // { ponte, material } do nível atual
-const COR_PONTE = new THREE.Color(0xe9d8b4);
-const GEO_PLACA = new THREE.BoxGeometry(0.9, 0.06, 0.9);   // quadrado fino
-const GEO_MARCADOR = new THREE.BoxGeometry(0.46, 0.04, 0.46);      // marcador de pulo: quadrado...
-const MATERIAL_MARCADOR = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-const GEO_ANEL_MARCADOR = new THREE.RingGeometry(0.1, 0.16, 24);   // ...com um círculo dentro
-const MATERIAL_ANEL_MARCADOR = new THREE.MeshBasicMaterial({ color: 0x1f2937 });
-
-function criarPontes(pontes = []) {
-  for (const p of pontes) {
-    const material = new THREE.MeshStandardMaterial({ color: COR_PONTE, roughness: .6, transparent: true, opacity: .25 });
-    // uma placa por célula do vão: é a própria célula da grade (andável com a câmera alinhada)
-    for (const c of placasDaPonte(p)) {
-      const placa = new THREE.Mesh(GEO_PLACA, material);
-      placa.position.set(c.x, c.y + 0.47, c.z);     // topo rente ao topo dos blocos
-      const bloco = grade.obter(c.x, c.y, c.z);
-      placa.userData.bloco = bloco;
-      bloco.malha = placa;
-      tilesRaycast.push(placa);
-      grupoNivel.add(placa);
-    }
-    pontesVisuais.push({ ponte: p, material });
-  }
-}
-
-function atualizarPontes() {
-  for (const { ponte, material } of pontesVisuais) {
-    material.opacity = grade.ponteAtiva(ponte) ? 1 : 0.25;
-  }
-}
-
-function posicaoNoBloco(b) {
-  return new THREE.Vector3(b.x, b.y + 0.5 + RAIO_PERSONAGEM + 0.02, b.z);
-}
-
-
-
-
-/* ============================================================================
-   6) CONTROLE DE CÂMERA — giro do cenário em passos de 90°
-   ============================================================================ */
-function girar(direcao) {                 // -1 = esquerda, +1 = direita
-  estado.giroAlvo += direcao * Math.PI / 2;
-}
-
-function atualizarCamera(dt) {
-  // interpolação exponencial (independente do FPS) até o alvo
-  const dif = estado.giroAlvo - estado.giroAtual;
-  if (Math.abs(dif) < 0.0008) estado.giroAtual = estado.giroAlvo;
-  else estado.giroAtual += dif * (1 - Math.exp(-CONFIG.suavizacaoGiro * dt));
-
-  const r = RAIO_ORBITA * Math.cos(ELEVACAO);
-  camera.position.set(
-    alvoCentro.x + r * Math.cos(estado.giroAtual),
-    alvoCentro.y + RAIO_ORBITA * Math.sin(ELEVACAO),
-    alvoCentro.z + r * Math.sin(estado.giroAtual)
-  );
-  camera.lookAt(alvoCentro);   // cenário sempre centralizado
-}
-
-/** Enquadra o diorama inteiro, em qualquer proporção de tela.
-    O zoom (roda do mouse / botões) só aperta ou afasta esse enquadramento. */
-function atualizarEnquadramento() {
-  const aspecto = window.innerWidth / window.innerHeight;
-  const necessario = 2 * raioNivel * CONFIG.margemCamera / CONFIG.zoom;
-  const altura = aspecto < 1 ? necessario / aspecto : necessario;
-
-  camera.top = altura / 2;
-  camera.bottom = -altura / 2;
-  camera.left = -altura * aspecto / 2;
-  camera.right = altura * aspecto / 2;
-  camera.updateProjectionMatrix();
-}
-
-/** Aproxima/afasta a câmera sem sair dos limites. */
-function ajustarZoom(fator) {
-  CONFIG.zoom = Math.min(CONFIG.zoomMax, Math.max(CONFIG.zoomMin, CONFIG.zoom * fator));
-  atualizarEnquadramento();
-  avisar(`Zoom ${Math.round(CONFIG.zoom * 100)}%`);
-}
-
-window.addEventListener('resize', () => {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  atualizarEnquadramento();
-});
-
-// roda do mouse aproxima/afasta (passive:false para poder prevenir o scroll)
-canvas.addEventListener('wheel', ev => {
-  ev.preventDefault();
-  ajustarZoom(ev.deltaY > 0 ? 0.9 : 1.1);
-}, { passive: false });
-
-
-/* ============================================================================
-   7) MOVIMENTAÇÃO — raycast na face superior + validação na grade
+   5) MOVIMENTAÇÃO — raycast, rota na grade, passos, pulo e queda
    ============================================================================ */
 const ray = new THREE.Raycaster();
 const ponteiro = new THREE.Vector2();
@@ -565,6 +448,7 @@ function celulaDeEmbarque(destino) {
   return null;
 }
 
+/** Próximo passo da fila. Placa de ponte fora do alinhamento: espera ou cai. */
 function proximoPasso() {
   const destino = estado.fila.shift();
   if (!destino) return;
@@ -583,8 +467,8 @@ function proximoPasso() {
   estado.blocoAtual = destino;
 }
 
-/** Pulo com marcador: salta sobre o vão até a célula andável. Sem chão do outro
-    lado, cai. Se há chão à frente, não é pulo: quem chama anda um passo. */
+/** Pulo com marcador: salta sobre o vão até o próximo bloco de pulo na direção.
+    Sem bloco de pulo do outro lado, cai. Se há chão à frente, não é pulo. */
 function pularSobre(ix, iz) {
   if (estado.passo || estado.caindo) return;
   const de = estado.blocoAtual;
@@ -592,6 +476,7 @@ function pularSobre(ix, iz) {
   if (!destino) { cairNoVao(); return; }
   estado.fila = [];
   estado.aguardandoPonte = null;
+  som.tocar('pulo');
   const origem = personagem.position.clone();
   estado.passo = { de: origem, para: posicaoNoBloco(destino), bloco: destino, t: 0, pulo: true };
   girarPersonagemPara(destino.x - de.x, destino.z - de.z);
@@ -610,8 +495,8 @@ function andarUmPasso(ix, iz) {
 }
 
 const PRAZO_SETA_MS = 400;
-/** Setas: uma seta anda um passo. No marcador de pulo, duas setas seguidas
-    na direção da ponte pulam até a outra ponta. */
+/** Setas: uma seta anda um passo. No bloco de pulo sem chão à frente, duas setas
+    seguidas na mesma direção pulam até o próximo bloco de pulo. */
 function pressionarSeta(ix, iz) {
   const noMarcador = !estado.passo && estado.blocoAtual.tipo === 'pulo';
   const frente = noMarcador ? grade.obter(estado.blocoAtual.x + ix, estado.blocoAtual.y, estado.blocoAtual.z + iz) : null;
@@ -625,26 +510,37 @@ function pressionarSeta(ix, iz) {
     }
     andarUmPasso(pend.ix, pend.iz);
   }
-  if (noMarcador) {                                     // 1ª seta no marcador: espera a 2ª
-    const timer = setTimeout(() => { estado.setaPulo = null; andarUmPasso(ix, iz); }, PRAZO_SETA_MS);
+  // no bloco de pulo, só espera a 2ª seta se não há chão à frente (senão é um passo comum)
+  if (noMarcador && !grade.andavel(frente)) {
+    const geracao = estado.geracao;
+    const timer = setTimeout(() => {
+      if (geracao !== estado.geracao) return;           // a fase mudou nesse meio-tempo
+      estado.setaPulo = null;
+      andarUmPasso(ix, iz);
+    }, PRAZO_SETA_MS);
     estado.setaPulo = { t: performance.now(), timer, ix, iz };
     return;
   }
   andarUmPasso(ix, iz);
 }
 
-/** Tentou atravessar uma ponte fora do alinhamento: cai no vão e a fase reinicia. */
+/** Caiu no vão: o personagem some para baixo e a fase reinicia (as moedas da
+    tentativa são descartadas). */
 function cairNoVao(ponte = null) {
   estado.caindo = true;
   estado.fila = [];
   estado.passo = null;
+  estado.aguardandoPonte = null;
   const y0 = personagem.position.y;
+  const geracao = estado.geracao;
+  som.tocar('queda');
   avisar(ponte ? `💀 Caiu no vão! Para atravessar, ${dicaGiro(ponte.angulo)}` : '💀 Caiu no vão! A fase vai reiniciar…', 3500);
   tween(0.8, p => {
+    if (geracao !== estado.geracao) return;
     personagem.position.y = y0 - p * p * 6;
     personagem.scale.setScalar(1 - p * 0.5);
   }, () => {
-    estado.caindo = false;
+    if (geracao !== estado.geracao) return;
     carregarNivel(indiceNivel);
   });
 }
@@ -658,6 +554,7 @@ function atualizarPontePendente(dt) {
   p.t += dt;
   if (grade.ponteAtiva(p.ponte)) {
     estado.aguardandoPonte = null;
+    som.tocar('ponte');
     estado.fila.unshift(p.destino);
     proximoPasso();
   } else if (grade.quadrante !== null || quadranteAlvo(estado.giroAlvo) !== p.ponte.angulo || p.t >= PRAZO_PONTE) {
@@ -675,13 +572,16 @@ function atualizarPasso(dt) {
     p.t = 1;
     estado.passo = null;
     personagem.position.copy(p.para);
+    estado.passos++;                    // pontuação: cada passo (ou pulo) conta
+    if (!p.pulo) som.tocar('passo');
+    atualizarMostrador();
     aoEntrarNoBloco(p.bloco);
     if (!estado.concluido) proximoPasso();
   } else {
     const e = p.t < .5 ? 4 * p.t ** 3 : 1 - (-2 * p.t + 2) ** 3 / 2;  // easeInOutCubic
     personagem.position.lerpVectors(p.de, p.para, e);
     const altura = p.pulo ? CONFIG.alturaSalto : CONFIG.alturaPulo;
-    personagem.position.y += Math.sin(Math.PI * p.t) * altura;  // pulinho (arco, na ponte)
+    personagem.position.y += Math.sin(Math.PI * p.t) * altura;  // pulinho (arco, no pulo)
   }
 }
 
@@ -696,7 +596,7 @@ function coletarMoeda(b) {
 
   const malha = b.moeda;
   b.moeda = null;
-  cancelarTweens(malha);                     // interrompe o "surgir", se ainda rolando
+  cancelarTweens(malha);                 // interrompe o "surgir", se ainda rolando
   malha.scale.setScalar(1);
 
   // animação: a moeda sobe, gira e desaparece
@@ -711,10 +611,10 @@ function coletarMoeda(b) {
   });
 
   coletadas++;
-  somarMoedaUniversal();            // +1 no contador universal (salvo)
-  atualizarHUD();
-  popupMoeda(b);                    // "+1" sobe da moeda
-  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · total ${totalUniversal})`);
+  som.tocar('moeda');
+  atualizarMostrador();
+  popupMoeda(b);                         // "+1" sobe da moeda
+  avisar(`🪙 Moeda coletada! (${coletadas}/${totalMoedas} · total ${progresso.total + coletadas})`);
 
   if (CONFIG.concluirAposTodasAsMoedas && coletadas >= totalMoedas) concluirFase();
   else if (!CONFIG.concluirAposTodasAsMoedas) concluirFase();
@@ -739,11 +639,17 @@ function atualizarRotacaoPersonagem(dt) {
   personagem.rotation.y += d * (1 - Math.exp(-12 * dt));
 }
 
+
+/* ============================================================================
+   6) ENTRADA — mouse, toque (gestos, D-pad) e teclado
+   ============================================================================ */
+
 /* ---- clique: move o personagem ---- */
 canvas.addEventListener('click', ev => {
   if (estado.concluido || estado.caindo) return;
+  if (performance.now() - fimDoGestoMs < 350) return;     // fim de arraste/pinça, não é toque
   if (viajandoDeElevador()) { avisar('🛗 Espera o elevador chegar…'); return; }
-  const b = blocoSobOCursor(ev);
+  const b = blocoNoToque(ev);
   if (!b || b === estado.blocoAtual) return;
 
   if (!TIPOS_ANDAVEIS.has(b.tipo) && b.tipo !== 'ponte') { avisar('Esse bloco não é caminhável 🚧'); return; }
@@ -774,6 +680,7 @@ canvas.addEventListener('click', ev => {
 
 /* ---- mouse: destaca o bloco que pode receber o personagem ---- */
 canvas.addEventListener('pointermove', ev => {
+  if (ev.pointerType === 'touch') return;          // no toque, o destaque é o do toque (abaixo)
   const b = blocoSobOCursor(ev);
   if (b && grade.podeMover(estado.blocoAtual, b)) {
     destaque.visible = true;
@@ -786,6 +693,90 @@ canvas.addEventListener('pointermove', ev => {
 });
 canvas.addEventListener('pointerleave', () => { destaque.visible = false; });
 
+/* ---- toque: arraste na horizontal gira 90°, pinça dá zoom, toque curto anda ---- */
+const ponteirosToque = new Map();          // pointerId -> { x, y }
+let gestoToque = null;                     // { x0, y0, t0, dedos, distIni, distAnt }
+let fimDoGestoMs = -Infinity;              // quando o último gesto terminou (-∞: nenhum ainda)
+
+canvas.addEventListener('pointerdown', ev => {
+  if (ev.pointerType !== 'touch') return;
+  ultimoTipoPonteiro = 'touch';
+  ponteirosToque.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ponteirosToque.size === 1) {
+    gestoToque = { x0: ev.clientX, y0: ev.clientY, t0: performance.now(), dedos: 1, distIni: 0, distAnt: 0 };
+    const b = blocoNoToque(ev);            // destaque ao tocar (no celular não há hover)
+    destaque.visible = !!(b && grade.podeMover(estado.blocoAtual, b));
+    if (destaque.visible) destaque.position.set(b.x, b.y, b.z);
+  } else if (ponteirosToque.size === 2) {
+    const [a, c] = [...ponteirosToque.values()];
+    const d = Math.hypot(a.x - c.x, a.y - c.y);
+    gestoToque = { ...gestoToque, dedos: 2, distIni: d, distAnt: d };
+    destaque.visible = false;              // dois dedos: não é toque de andar
+  }
+});
+
+canvas.addEventListener('pointermove', ev => {
+  if (ev.pointerType !== 'touch' || !ponteirosToque.has(ev.pointerId)) return;
+  ponteirosToque.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  if (ponteirosToque.size === 2 && gestoToque) {
+    const [a, c] = [...ponteirosToque.values()];
+    const d = Math.hypot(a.x - c.x, a.y - c.y);
+    const f = fatorDePinca(gestoToque.distAnt, d);
+    if (Math.abs(f - 1) >= 0.02) {
+      ajustarZoom(f, true);
+      gestoToque.distAnt = d;
+    }
+  }
+});
+
+const terminarToque = ev => {
+  if (ev.pointerType !== 'touch' || !ponteirosToque.has(ev.pointerId)) return;
+  const eramDois = ponteirosToque.size === 2;
+  ponteirosToque.delete(ev.pointerId);
+  destaque.visible = false;
+  if (eramDois) fimDoGestoMs = performance.now();                 // pinça: não é clique
+  if (!eramDois && gestoToque && gestoToque.dedos === 1 && ponteirosToque.size === 0) {
+    const tipo = classificarGesto({
+      dx: ev.clientX - gestoToque.x0, dy: ev.clientY - gestoToque.y0,
+      ms: performance.now() - gestoToque.t0, dedos: 1
+    });
+    if (tipo === 'arraste-h') girar(ev.clientX > gestoToque.x0 ? 1 : -1);
+    if (tipo !== 'toque') fimDoGestoMs = performance.now();       // arraste: não é clique
+  }
+  if (ponteirosToque.size === 0) gestoToque = null;
+};
+canvas.addEventListener('pointerup', terminarToque);
+canvas.addEventListener('pointercancel', terminarToque);
+
+/** Seta da tela (D-pad ou teclado): as mesmas regras para os dois. */
+function pressionarDirecao(dir) {
+  if (estado.concluido) return;
+  if (viajandoDeElevador()) { avisar('🛗 Espera o elevador chegar…'); return; }
+  const { ix, iz } = direcaoDoMundo(dir, estado.giroAtual);
+  pressionarSeta(ix, iz);
+}
+
+let ultimoTipoPonteiro = 'mouse';
+/** Bloco sob o toque. No celular, se o raio não acerta nenhum bloco, usa o mais
+    próximo na tela (blocos pequenos ou afastados). */
+function blocoNoToque(ev) {
+  const b = blocoSobOCursor(ev);
+  if (b || ultimoTipoPonteiro !== 'touch') return b;
+  const r = canvas.getBoundingClientRect();
+  const candidatos = [];
+  const v = new THREE.Vector3();
+  for (const m of tilesRaycast) {
+    if (!m.userData.bloco) continue;
+    v.copy(m.position).project(camera);
+    candidatos.push({
+      sx: (v.x + 1) / 2 * r.width + r.left,
+      sy: (1 - v.y) / 2 * r.height + r.top,
+      bloco: m.userData.bloco
+    });
+  }
+  return maisProximoDoToque(candidatos, ev.clientX, ev.clientY);
+}
+
 /* ---- teclado: WASD/setas movem, Q/E giram a tela ---- */
 const TECLAS = {
   arrowup: [0, 1], w: [0, 1],
@@ -796,6 +787,7 @@ const TECLAS = {
 };
 
 window.addEventListener('keydown', ev => {
+  som.desbloquear();                        // o áudio começa na primeira tecla
   const tecla = TECLAS[ev.key.toLowerCase()];
 
   // Q / E: giro da tela (funciona até com a fase concluída)
@@ -810,24 +802,29 @@ window.addEventListener('keydown', ev => {
   const dir = tecla;
   if (!dir) return;
   ev.preventDefault();
-
-  // converte a direção da tela para a direção do mundo, conforme o giro atual
-  const yaw = estado.giroAtual;
-  const frenteX = -Math.cos(yaw), frenteZ = -Math.sin(yaw);  // "fundo da tela"
-  const dirX = Math.sin(yaw), dirZ = -Math.cos(yaw);         // "direita da tela"
-  const mx = dirX * dir[0] + frenteX * dir[1];
-  const mz = dirZ * dir[0] + frenteZ * dir[1];
-
-  // reduz para o eixo dominante (movimento sempre alinhado à grade)
-  const ix = Math.abs(mx) >= Math.abs(mz) ? Math.sign(mx) : 0;
-  const iz = Math.abs(mx) >= Math.abs(mz) ? 0 : Math.sign(mz);
-
-  pressionarSeta(ix, iz);
+  pressionarDirecao(dir);
 });
 
-/* ---- botões de giro ---- */
+// Enter / Espaço avançam de fase na tela de conclusão
+window.addEventListener('keydown', ev => {
+  if (!estado.concluido) return;
+  if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); proximaFase(); }
+});
+
+// o áudio do navegador só começa depois de um toque (ou tecla) do jogador
+window.addEventListener('pointerdown', () => som.desbloquear());
+
+/* ---- botões da interface ---- */
 document.getElementById('btn-girar-esq').addEventListener('click', () => girar(-1));
 document.getElementById('btn-girar-dir').addEventListener('click', () => girar(1));
+
+/* ---- D-pad na tela (celular): mesma lógica das setas do teclado ---- */
+const DPAD = { 'btn-dpad-cima': [0, 1], 'btn-dpad-baixo': [0, -1], 'btn-dpad-esq': [-1, 0], 'btn-dpad-dir': [1, 0] };
+for (const [id, dir] of Object.entries(DPAD)) {
+  document.getElementById(id).addEventListener('click', () => pressionarDirecao(dir));
+}
+if (TOQUE && document.body) document.body.classList.add('toque');
+
 document.getElementById('btn-zoom-menos').addEventListener('click', () => ajustarZoom(1 / 1.2));
 document.getElementById('btn-zoom-mais').addEventListener('click', () => ajustarZoom(1.2));
 
@@ -842,109 +839,83 @@ document.getElementById('btn-fase-proxima').addEventListener('click', () => {
   avisar(`Fase ${indiceNivel + 1}`);
 });
 
+// som: liga/desliga (salvo no navegador)
+document.getElementById('btn-som').addEventListener('click', () => {
+  som.alternarMudo();
+  som.desbloquear();
+  atualizarBotaoSom(som.mudo);
+});
+
+// menu de fases: abre a grade com as fases abertas e concluídas
+document.getElementById('btn-menu').addEventListener('click', () => menu.abrir(itensMenu()));
+
+/** Itens do menu: as concluídas (com estrelas), a atual e as abertas; mais duas travadas à frente. */
+function itensMenu() {
+  const maior = progresso.maiorConcluida();
+  const fim = Math.max(indiceNivel, maior + 1) + 2;
+  const itens = [];
+  for (let i = 0; i <= fim; i++) {
+    const rec = progresso.recorde(i);
+    let estadoFase = 'travada';
+    if (progresso.concluida(i)) estadoFase = 'concluida';
+    else if (i === indiceNivel) estadoFase = 'atual';
+    else if (progresso.aberta(i)) estadoFase = 'aberta';
+    itens.push({
+      indice: i,
+      nome: NIVEIS[i]?.nome ?? `Fase ${i + 1} (procedural)`,
+      estado: estadoFase,
+      estrelas: rec ? rec.estrelas : 0
+    });
+  }
+  return itens;
+}
+
 
 /* ============================================================================
-   8) INTERFACE (HUD)
+   7) REGRAS DE MOEDAS, CONCLUSÃO E FASES
    ============================================================================ */
-/* ---- CONTADOR UNIVERSAL DE MOEDAS -----------------------------------------
-   Cada moeda coletada em QUALQUER fase soma +1 neste total, que fica salvo no
-   navegador (localStorage). Diferente do contador da fase, que mostra
-   "coletadas/total desta fase" e zera ao trocar de nível.                */
-let totalUniversal = 0;
 
-function carregarTotalUniversal() {
-  try {
-    const salvo = Number(localStorage.getItem('diorama-total-moedas'));
-    totalUniversal = Number.isFinite(salvo) && salvo > 0 ? Math.floor(salvo) : 0;
-  } catch { totalUniversal = 0; }
-  return totalUniversal;
-}
-
-function somarMoedaUniversal() {
-  totalUniversal++;
-  try { localStorage.setItem('diorama-total-moedas', String(totalUniversal)); }
-  catch { /* localStorage indisponível: o total vale só para esta sessão */ }
-  return totalUniversal;
-}
-
-function atualizarTotalUniversal() {
-  document.getElementById('total-moedas').textContent = `Total 🪙 ${totalUniversal}`;
-}
-
-function atualizarHUD() {
-  document.getElementById('nome-fase').textContent = materializarNivel(indiceNivel).nome;
-  document.getElementById('contador-moedas').textContent = `🪙 ${coletadas}/${totalMoedas}`;
-  atualizarTotalUniversal();
-}
-
-/** Popup "+1" que sobe da moeda coletada (posição do mundo -> tela). */
-function popupMoeda(bloco) {
-  const mundo = new THREE.Vector3(bloco.x, bloco.y + 1.1, bloco.z).project(camera);
-  const x = (mundo.x * 0.5 + 0.5) * window.innerWidth;
-  const y = (-mundo.y * 0.5 + 0.5) * window.innerHeight;
-  const el = document.createElement('div');
-  el.className = 'popup-moeda';
-  el.textContent = '+1';
-  el.style.left = `${x}px`;
-  el.style.top = `${y}px`;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 950);
-}
-
-/** Rótulo "Fase 2/5" — aparece no painel de título. */
-function atualizarIndicadorFase() {
-  document.getElementById('nome-fase').textContent =
-    `${materializarNivel(indiceNivel).nome}  ·  ${indiceNivel + 1}/∞`;
-}
-let temporizadorAviso;
-function avisar(texto, ms = 1700) {
-  const el = document.getElementById('aviso');
-  el.textContent = texto;
-  el.classList.add('visivel');
-  clearTimeout(temporizadorAviso);
-  temporizadorAviso = setTimeout(() => el.classList.remove('visivel'), ms);
-}
-
-/** Texto de quantos giros e para que lado (Q/E) ativam a ponte de `angulo`. */
-function dicaGiro(angulo) {
-  const g = giroNecessario(quadranteAlvo(estado.giroAlvo), angulo);
-  if (!g.vezes) return 'a ponte já está alinhada';
-  const tecla = g.lado === 'direita' ? 'DIREITA (E)' : 'ESQUERDA (Q)';
-  return `gire ${g.vezes > 1 ? g.vezes + '× ' : ''}para a ${tecla}`;
-}
-
-/** Existe uma fase depois dessa? (na última, o botão volta para a Fase 1) */
-
+/** Fase concluída: confirma as moedas no total (progresso salvo) e mostra a pontuação. */
 function concluirFase() {
   estado.concluido = true;
   estado.fila = [];
   estado.passo = null;
-
-  // guarda o progresso (a fase mais avançada já concluída)
-  try {
-    const salvo = Number(localStorage.getItem('diorama-progresso') || 0);
-    if (indiceNivel + 1 > salvo) localStorage.setItem('diorama-progresso', String(indiceNivel + 1));
-  } catch { /* localStorage indisponível: segue sem salvar */ }
-
+  estado.aguardandoPonte = null;
+  const tempo = (performance.now() - estado.inicioMs) / 1000;
+  const par = parDaFase ? parDaFase.par : null;
+  const r = progresso.concluir(indiceNivel, { moedas: coletadas, passos: estado.passos, tempo, par });
+  som.tocar('fase');
   if (CONFIG.usarAlertaNativo) alert('Fase Concluída!');
+  atualizarMostrador();
 
   // não há fim: depois das fases manuais, as fases procedurais continuam
-  document.getElementById('titulo-conclusao').textContent = 'Fase Concluída!';
-  document.getElementById('texto-conclusao').textContent =
-    `Você coletou todas as moedas. Prepare-se para: ${materializarNivel(indiceNivel + 1).nome}`;
-  document.getElementById('btn-proxima').textContent = 'Próxima Fase ▶';
-  document.getElementById('total-moedas').textContent = `Total 🪙 ${totalUniversal} moedas`;
-  document.getElementById('tela-conclusao').classList.add('visivel');  }
+  mostrarConclusao({
+    titulo: 'Fase Concluída!',
+    texto: `Você coletou todas as moedas. Prepare-se para: ${materializarNivel(indiceNivel + 1).nome}`,
+    estatisticas: textoEstatisticas(r, tempo),
+    proximo: 'Próxima Fase ▶',
+    total: `Total 🪙 ${progresso.total} moedas`
+  });
+}
 
+/** Linha da pontuação: passos, recorde, tempo, estrelas e moedas ganhas. */
+function textoEstatisticas(r, tempo) {
+  const recorde = r.primeira ? 'primeiro recorde!'
+    : r.novoRecorde ? `novo recorde! (antes: ${r.recordeAnterior})`
+    : `recorde: ${r.passosRecorde}`;
+  const ganho = r.ganho ? ` · +${r.ganho} 🪙` : '';
+  const meta = r.par === null || r.par === undefined ? '' : ` (meta ${r.par})`;
+  return `Passos: ${r.passos}${meta} · ${recorde} · Tempo: ${tempo.toFixed(0)} s · ${textoEstrelas(r.estrelas)}${ganho}`;
+}
+
+/** Recomeça a fase: a tentativa é descartada e o total volta ao de antes da fase. */
 function reiniciar() {
-  document.getElementById('tela-conclusao').classList.remove('visivel');
   carregarNivel(indiceNivel);
   avisar('Fase reiniciada ↺');
 }
 
-/** Avança para a próxima fase; na última, volta para a primeira. */
+/** Avança para a próxima fase (a partir da última manual, vem a primeira procedural). */
 function proximaFase() {
-  document.getElementById('tela-conclusao').classList.remove('visivel');
   carregarNivel(indiceNivel + 1);
   avisar(`Fase ${indiceNivel + 1}`);
 }
@@ -953,13 +924,10 @@ document.getElementById('btn-reiniciar').addEventListener('click', reiniciar);
 document.getElementById('btn-reiniciar-hud').addEventListener('click', reiniciar);
 document.getElementById('btn-proxima').addEventListener('click', proximaFase);
 
-// Enter / Espaço avançam de fase na tela de conclusão
-window.addEventListener('keydown', ev => {
-  if (!estado.concluido) return;
-  if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); proximaFase(); }
-});
 
-/* ---- sistema simples de "tweens" (animações com duração) ---- */
+/* ============================================================================
+   8) TWEENS (animações com duração) E LOOP PRINCIPAL
+   ============================================================================ */
 const tweens = [];
 function tween(duracao, aoAtualizar, aoTerminar = null, atraso = 0, alvo = null) {
   tweens.push({ t: -atraso, duracao, aoAtualizar, aoTerminar, alvo });
@@ -984,10 +952,6 @@ function atualizarTweens(dt) {
   }
 }
 
-
-/* ============================================================================
-   9) LOOP PRINCIPAL
-   ============================================================================ */
 function atualizarMoedas(dt, tempo) {
   for (const b of grade.lista) {
     if (!b.moeda) continue;
@@ -996,7 +960,6 @@ function atualizarMoedas(dt, tempo) {
   }
 }
 
-let ultimo = performance.now();
 function animar(agora) {
   requestAnimationFrame(animar);
   const dt = Math.min((agora - ultimo) / 1000, 0.05);   // no máx. 50ms por quadro
@@ -1016,14 +979,26 @@ function animar(agora) {
   renderer.render(cena, camera);
 }
 
-/* ---- início ---- */
-// continua de onde o jogador parou (progresso salvo no navegador)
-let inicio = 0;
-try {
-  const salvo = Number(localStorage.getItem('diorama-progresso') || 0);
-  if (Number.isFinite(salvo) && salvo >= 0) inicio = salvo;
-} catch { /* localStorage indisponível: começa na Fase 1 */ }
-carregarTotalUniversal();          // contador universal de moedas
-carregarNivel(inicio);
+
+/* ============================================================================
+   9) INÍCIO
+   ============================================================================ */
+atualizarBotaoSom(som.mudo);
+// continua de onde o jogador parou: a primeira fase ainda não concluída
+carregarNivel(Math.max(0, progresso.maiorConcluida() + 1));
 requestAnimationFrame(animar);
 window.__DIORAMA_PRONTO__ = true;   // usada pelo aviso de erro da CDN
+
+// ganchos para os testes de ponta a ponta (só com ?debug na URL)
+if (typeof location !== 'undefined' && location.search.includes('debug')) {
+  window.__DIORAMA_DEBUG__ = {
+    estado, CONFIG, progresso, som,
+    indice: () => indiceNivel,
+    grade: () => grade,
+    /** posição do mundo -> pixel da tela (para os testes de toque) */
+    projetar: (x, y, z) => {
+      const v = new THREE.Vector3(x, y, z).project(camera);
+      return { x: (v.x + 1) / 2 * window.innerWidth, y: (1 - v.y) / 2 * window.innerHeight };
+    }
+  };
+}

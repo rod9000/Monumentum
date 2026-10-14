@@ -14,6 +14,7 @@ for (const nivel of NIVEIS) {
   const g = new Grade(nivel.blocos, nivel.pontes);
   g.pontesLivres = true;                 // alcance: todas as pontes contam como arestas
   const temPonte = (nivel.pontes || []).length > 0;
+  const temPulo = nivel.blocos.some(b => b.tipo === 'pulo');
   const spawn = nivel.blocos.find(b => b.tipo === 'spawn');
   const moedas = g.lista.filter(b => b.tipo === 'moeda');
   const temElevador = g.lista.some(b => b.elev);
@@ -40,7 +41,7 @@ for (const nivel of NIVEIS) {
   }
 
   // isoladas A PÉ — só é problema em fases sem elevador nem ponte
-  if (!temElevador && !temPonte) {
+  if (!temElevador && !temPonte && !temPulo) {
     const isolados = g.lista.filter(b => g.andavel(b) && b !== spawn && !g.rota(spawn, b))
       .map(b => `(${b.x},${b.y},${b.z})`);
     if (isolados.length) { console.log('  X blocos andáveis isolados:', isolados.join(' ')); falhas++; }

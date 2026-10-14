@@ -1,0 +1,15 @@
+{
+  "name": "Diorama Puzzle",
+  "short_name": "Diorama",
+  "description": "Puzzle 3D em grade, estilo Captain Toad.",
+  "lang": "pt-BR",
+  "start_url": "./diorama-puzzle.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#bfe3f2",
+  "theme_color": "#bfe3f2",
+  "icons": [
+    { "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

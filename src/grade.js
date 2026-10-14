@@ -250,6 +250,12 @@ export function alcancaveis(grade, de) {
     for (const alvo of grade.extremosDePonte(atual)) {
       if (grade.andavel(alvo)) empurrar(alvo);
     }
+    if (atual.tipo === 'pulo') {                         // pulo: até o próximo bloco de pulo
+      for (const [ix, iz] of HORIZONTAIS) {
+        const t = alvoDoPulo(grade, atual, ix, iz);
+        if (t) empurrar(t);
+      }
+    }
     for (const e of elevadores) {
       // sobe no elevador (a partir da posição inicial dele)
       if (chave(e.x, e.y, e.z) === chave(atual.x, atual.y, atual.z)) empurrar(e.elev.para);

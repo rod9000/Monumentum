@@ -1,9 +1,9 @@
 /* ============================================================================
-   BUILD — bundla src/main.js com esbuild e injeta o resultado no template
+   BUILD — bundla src/main.js (com o Three.js embutido) e injeta no template
    ----------------------------------------------------------------------------
-   Gera diorama-puzzle.html INLINE (um único <script type="module">), para que o
-   jogo continue funcionando com duplo clique (file://). O Three.js continua
-   vindo do importmap/CDN (external).
+   Gera diorama-puzzle.html INLINE (um único <script type="module">): funciona
+   com duplo clique (file://) e sem internet, porque o Three.js vai dentro do
+   próprio arquivo (não há mais CDN nem importmap).
 
    Uso:  npm run build
    ============================================================================ */
@@ -23,7 +23,7 @@ const resultado = await build({
   bundle: true,
   format: 'esm',
   target: 'es2020',
-  external: ['three'],
+  minify: true,              // o Three.js vai inteiro no arquivo: minificar mantém o HTML leve
   legalComments: 'none',
   write: false
 });

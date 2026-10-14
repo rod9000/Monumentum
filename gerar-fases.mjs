@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { Grade, chave, TIPOS_ANDAVEIS, alcancaveis } from './src/grade.js';
 import { semente as rndSeed, embaralhar } from './src/aleatorio.js';
 import { gerarLabirinto, gerarEspiral, escadaReta } from './src/dados/geradores.js';
+import { montarRelevo, validaFase } from './src/procedural.js';
 
 const HORIZONTAIS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
@@ -35,12 +36,13 @@ function validar(nome, blocos, pontes = []) {
   }
   const spawn = blocos.find(b => b.tipo === 'spawn');
   const temElevador = blocos.some(b => b.elev);
+  const temPulo = blocos.some(b => b.tipo === 'pulo');
   const temPonte = pontes.length > 0;
   if (!spawn) erros.push('sem spawn');
   else {
     // blocos caminháveis isolados A PÉ (só é erro em fases sem elevador —
     // com elevador, ficar do outro lado do vão é justamente o objetivo)
-    if (!temElevador && !temPonte) {
+    if (!temElevador && !temPonte && !temPulo) {
       for (const b of blocos) {
         if (g.andavel(b) && b !== spawn && !g.rota(spawn, b)) {
           erros.push(`bloco caminhável isolado em ${chave(b.x, b.y, b.z)}`);
@@ -116,18 +118,19 @@ f2.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
 /* ============================================================================
    FASE 3 — HORIZONTAL: "A Travessia" (7x5: paredes + pontes sobre o vazio)
    ============================================================================ */
-const PAREDES_F3 = [[3, 0], [3, 2], [3, 4]];
+/* FASE 3 — A TRAVESSIA (refeita): três ilhas ligadas por blocos de pulo.
+   Cada vão é vencido com duas setas seguidas sobre o bloco de pulo; o par do
+   outro lado volta para a ilha de origem. */
 const f3 = [];
-for (let z = 0; z < 5; z++) {
-  for (let x = 0; x < 7; x++) {
-    const parede = PAREDES_F3.some(([px, pz]) => px === x && pz === z);
-    f3.push({ x, y: 0, z, tipo: parede ? 'parede' : (x === 0 && z === 0 ? 'spawn' : 'chao') });
-  }
-}
-{
-  const g = new Grade(f3);
-  const restantes = furar(g, 9, rndSeed(20240));   // seed só das LACUNAS (não das moedas)
-  f3.length = 0; f3.push(...restantes);
+const ilhaF3 = (x0, x1, z0, z1) => {
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) f3.push({ x, y: 0, z, tipo: 'chao' });
+};
+ilhaF3(0, 2, 0, 2);                                   // A: partida
+ilhaF3(6, 8, 0, 2);                                   // B
+ilhaF3(6, 8, 6, 8);                                   // C
+f3.find(b => b.x === 0 && b.z === 0).tipo = 'spawn';
+for (const [x, z] of [[2, 1], [6, 1], [7, 2], [7, 6]]) {   // pares de pulo sobre os vãos
+  f3.find(b => b.x === x && b.z === z).tipo = 'pulo';
 }
 
 /* ============================================================================
@@ -464,9 +467,26 @@ const P18 = [{ a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 2 }];
 /* ============================================================================
    VALIDAÇÃO E IMPRESSÃO
    ============================================================================ */
+/* ============================================================================
+   FASES 19–21 — RELEVO (ruído de Perlin com semente fixa)
+   Mapas orgânicos: a altura e as paredes vêm do ruído (src/ruido.js). A semente
+   é a primeira que passa na validação, então o resultado é sempre o mesmo.
+   ============================================================================ */
+function faseRelevo(indice, seedBase) {
+  for (let seed = seedBase; seed < seedBase + 500; seed++) {
+    const m = montarRelevo(indice, rndSeed(seed * 7919));
+    const fase = { nome: '', moedas: 3 + (indice % 2), distanciaMoedas: 2, seed, blocos: m.blocos, pontes: [] };
+    if (validaFase(fase)) return fase;
+  }
+  throw new Error(`relevo sem mapa válido (semente ${seedBase})`);
+}
+const R19 = faseRelevo(18, 1900);
+const R20 = faseRelevo(19, 2000);
+const R21 = faseRelevo(20, 2100);
+
 const fases = [
   { nome: 'Fase 2 — O Salão', bloco: f2, moedas: 3, distanciaMoedas: 3 },
-  { nome: 'Fase 3 — A Travessia', bloco: f3, moedas: 3, distanciaMoedas: 3 },
+  { nome: 'Fase 3 — A Travessia', bloco: f3, moedas: 4, distanciaMoedas: 2, seed: 303 },
   { nome: 'Fase 4 — A Escada', bloco: f4, moedas: 3, distanciaMoedas: 3 },
   { nome: 'Fase 5 — O Zigurate', bloco: f5, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 6 — Dois Mundos', bloco: f6, moedas: 3, distanciaMoedas: 3 },
@@ -481,7 +501,10 @@ const fases = [
   { nome: 'Fase 15 — O Grand Tour', bloco: f15, moedas: 5, distanciaMoedas: 2 },
   { nome: 'Fase 16 — Ilusão de Ótica', bloco: f16, moedas: 3, distanciaMoedas: 2, seed: 1601, pontes: P16 },
   { nome: 'Fase 17 — Dois Ângulos', bloco: f17, moedas: 4, distanciaMoedas: 3, seed: 1701, pontes: P17 },
-  { nome: 'Fase 18 — Ponte e Elevador', bloco: f18, moedas: 3, distanciaMoedas: 3, seed: 1801, pontes: P18 }
+  { nome: 'Fase 18 — Ponte e Elevador', bloco: f18, moedas: 3, distanciaMoedas: 3, seed: 1801, pontes: P18 },
+  { nome: 'Fase 19 — Relevo Ondulado', bloco: R19.blocos, moedas: R19.moedas, distanciaMoedas: 2, seed: R19.seed },
+  { nome: 'Fase 20 — Platôs', bloco: R20.blocos, moedas: R20.moedas, distanciaMoedas: 2, seed: R20.seed },
+  { nome: 'Fase 21 — Vales', bloco: R21.blocos, moedas: R21.moedas, distanciaMoedas: 2, seed: R21.seed }
 ];
 
 let falhas = 0;

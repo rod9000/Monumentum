@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { carregarJogo } from './carregar-jogo.mjs';
-import { alcancaveis } from '../src/grade.js';
+import { alcancaveis, alvoDoPulo } from '../src/grade.js';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.join(aqui, '..');
@@ -73,7 +73,7 @@ function esperarParar(maxFrames = 900) {
 }
 
 /* ---------- 2. carrega o jogo (bundle com o mock do THREE) ---------- */
-const mod = await carregarJogo(['personagem', 'camera', 'grade', 'estado', 'alvoCentro', 'coletadas', 'totalMoedas', 'CONFIG', 'NIVEIS', 'indiceNivel', 'carregarNivel', 'canvas as canvasJogo']);
+const mod = await carregarJogo(['personagem', 'camera', 'grade', 'estado', 'alvoCentro', 'coletadas', 'totalMoedas', 'CONFIG', 'NIVEIS', 'indiceNivel', 'carregarNivel', 'pressionarSeta', 'canvas as canvasJogo']);
 // fluxo de fases: as pontes de câmera são ignoradas aqui (o alinhamento real é testado em pontes.mjs)
 mod.CONFIG.pontesSempreAtivas = true;
 
@@ -156,7 +156,7 @@ const atravessarElevador = () => {
 /* ---------- 4. testes para cada fase ---------- */
 const niveis = mod.NIVEIS;
 console.log(`\nCarregadas ${niveis.length} fases: ${niveis.map(n => n.nome).join(' | ')}`);
-ok(mod.NIVEIS.length === 18, `há ${mod.NIVEIS.length} fases cadastradas`);
+ok(mod.NIVEIS.length === 21, `há ${mod.NIVEIS.length} fases cadastradas`);
 
 
 for (let i = 0; i < niveis.length; i++) {
@@ -176,7 +176,8 @@ for (let i = 0; i < niveis.length; i++) {
   // --- sorteio de moedas ---
   const desejadas = niveis[i].moedas ?? 0;
   const moedas = moedasAtuais();
-  const temElevador = grade().lista.some(b => b.elev) || (niveis[i].pontes || []).length > 0;
+  const temElevador = grade().lista.some(b => b.elev) || (niveis[i].pontes || []).length > 0
+    || grade().lista.some(b => b.tipo === 'pulo');
   ok(moedas.length === desejadas, `sorteio gerou ${moedas.length} moedas (pedido: ${desejadas})`);
   ok(moedas.every(m => !!m.moeda), 'cada moeda sorteada tem sua malha 3D flutuando');
   if (!temElevador) {
@@ -348,6 +349,26 @@ ok(document.getElementById('contador-moedas').textContent === `🪙 0/${mod.NIVE
 ok(document.getElementById('nome-fase').textContent.includes('2/∞'),
    'indicador mostra "2/∞"');
 
+// vão com bloco de pulo: anda até o bloco de pulo e pula (duas setas) para o outro lado
+const atravessarPulo = () => {
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const g = grade();
+  for (const pb of g.lista.filter(b => b.tipo === 'pulo')) {
+    const chegou = estado().blocoAtual === pb || g.rota(estado().blocoAtual, pb) || g.rota(spawnAtual(), pb);
+    if (!chegou) continue;
+    for (const [ix, iz] of dirs) {
+      const alvo = alvoDoPulo(g, pb, ix, iz);
+      if (!alvo || g.rota(estado().blocoAtual, alvo)) continue;     // já alcançável a pé
+      if (estado().blocoAtual !== pb) irPara(pb);
+      mod.pressionarSeta(ix, iz);
+      mod.pressionarSeta(ix, iz);
+      esperarParar();
+      return true;
+    }
+  }
+  return false;
+};
+
 // avança por todas as fases consecutivas
 const concluirFaseAtual = () => {
   // em fases com elevador as moedas podem ficar do outro lado do vão; nesse
@@ -365,6 +386,10 @@ const concluirFaseAtual = () => {
   // precisar — a Fase 11 tem dois) e continua coletando
   for (let t = 0; t < 8 && moedasAtuais().length; t++) {
     if (!atravessarElevador()) break;
+    coletarAcessiveis();
+  }
+  for (let t = 0; t < 8 && moedasAtuais().length; t++) {
+    if (!atravessarPulo()) break;
     coletarAcessiveis();
   }
   // última tentativa: o clique roteia para a beirada de embarque

@@ -21,6 +21,7 @@ import { gerarLabirinto } from './dados/geradores.js';
 import { Grade, alcancaveis, chave, alvoDoPulo } from './grade.js';
 import { sortearMoedas } from './moedas.js';
 import { clonarBloco, iniciarElevador } from './elevadores.js';
+import { criarRuido } from './ruido.js';
 
 const TENTATIVAS = 12;
 const VAO = 3;                                       // células entre duas ilhas
@@ -196,7 +197,7 @@ function montarIlhas(p, rnd) {
 
 /** Valida: spawn, piso caminhável e moedas todos alcançáveis (pontes e elevadores
     contam como arestas) e nenhuma coordenada repetida. */
-function valida(fase) {
+export function validaFase(fase) {
   // cópia como no jogo: os elevadores ganham o estado inicial (inicio, t, para)
   const g = new Grade(fase.blocos.map(clonarBloco), fase.pontes);
   for (const b of g.lista) iniciarElevador(b);
@@ -221,6 +222,46 @@ function valida(fase) {
   return g.lista.every(b => !g.andavel(b) || dist.has(chave(b.x, b.y, b.z)));
 }
 
+/** Relevo orgânico: o ruído define a altura de cada célula (vazio, térreo ou um
+    andar acima) e onde há paredes. A altura muda no máximo 1 andar entre vizinhos,
+    então dá para andar por toda parte. A validação confere o resto. */
+export function montarRelevo(n, rnd) {
+  const G = Math.min(7 + Math.floor(n / 5), 11);      // lado da grade de células
+  const altura = criarRuido(Math.floor(rnd() * 1e9));
+  const paredes = criarRuido(Math.floor(rnd() * 1e9));
+  const nivel = [];
+  for (let x = 0; x < G; x++) {
+    nivel.push([]);
+    for (let z = 0; z < G; z++) {
+      const v = altura(x * 0.45, z * 0.45);
+      nivel[x].push(v < 0.38 ? null : v < 0.58 ? 0 : 1);   // null = vazio
+    }
+  }
+  // partida: célula de térreo mais perto do centro (sem parede, decidido abaixo)
+  const c = (G - 1) / 2;
+  let spawn = null, melhor = Infinity;
+  for (let x = 0; x < G; x++) {
+    for (let z = 0; z < G; z++) {
+      if (nivel[x][z] !== 0) continue;
+      const d = Math.abs(x - c) + Math.abs(z - c);
+      if (d < melhor) { melhor = d; spawn = { x, z }; }
+    }
+  }
+  const blocos = [];
+  if (!spawn) return { blocos, pontes: [] };
+  for (let x = 0; x < G; x++) {
+    for (let z = 0; z < G; z++) {
+      const L = nivel[x][z];
+      if (L === null) continue;
+      const eSpawn = x === spawn.x && z === spawn.z;
+      blocos.push({ x, y: L, z, tipo: eSpawn ? 'spawn' : 'chao' });
+      if (L === 1) blocos.push({ x, y: 0, z, tipo: 'parede' });        // sustento do andar de cima
+      if (!eSpawn && paredes(x * 0.9, z * 0.9) > 0.68) blocos.push({ x, y: L + 1, z, tipo: 'parede' });
+    }
+  }
+  return { blocos, pontes: [] };
+}
+
 /** Sala aberta 5x5: último recurso, válida por construção. */
 function salaAberta(n) {
   const blocos = [];
@@ -234,8 +275,11 @@ export function gerarFase(n) {
   const p = parametros(n);
   for (let t = 0; t < TENTATIVAS; t++) {
     const rnd = semente(((n + 1) * 2654435761 + t * 40503) >>> 0);
-    const familia = rnd() < 0.35 ? 'labirinto' : 'ilhas';
-    const mapa = familia === 'labirinto' ? montarLabirinto(p, rnd) : montarIlhas(p, rnd);
+    const sorteio = rnd();
+    const familia = sorteio < 0.25 ? 'labirinto' : sorteio < 0.6 ? 'ilhas' : 'relevo';
+    const mapa = familia === 'labirinto' ? montarLabirinto(p, rnd)
+      : familia === 'ilhas' ? montarIlhas(p, rnd)
+      : montarRelevo(n, rnd);
     const fase = {
       nome: `Fase ${n + 1}`,
       moedas: p.moedas,
@@ -245,7 +289,7 @@ export function gerarFase(n) {
       blocos: mapa.blocos,
       pontes: mapa.pontes
     };
-    if (valida(fase)) return fase;
+    if (validaFase(fase)) return fase;
   }
   return salaAberta(n);
 }

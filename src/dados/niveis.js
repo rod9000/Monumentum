@@ -130,39 +130,62 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 3 — A Travessia',
-    moedas: 3, distanciaMoedas: 3,
+    moedas: 4, distanciaMoedas: 2, seed: 303,
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 0, z: 0, tipo: 'spawn' },
-      { x: 4, y: 0, z: 0, tipo: 'chao' },
-      { x: 5, y: 0, z: 0, tipo: 'chao' },
-      { x: 6, y: 0, z: 0, tipo: 'chao' },
       /* ---- z = 1 ---- */
       { x: 0, y: 0, z: 1, tipo: 'chao' },
-      { x: 2, y: 0, z: 1, tipo: 'chao' },
-      { x: 3, y: 0, z: 1, tipo: 'chao' },
-      { x: 4, y: 0, z: 1, tipo: 'chao' },
-      { x: 5, y: 0, z: 1, tipo: 'chao' },
       /* ---- z = 2 ---- */
       { x: 0, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 1, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 1, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
       { x: 1, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 2, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 2, y: 0, z: 1, tipo: 'pulo' },
+      /* ---- z = 2 ---- */
       { x: 2, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 6, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 6, y: 0, z: 1, tipo: 'pulo' },
+      /* ---- z = 2 ---- */
       { x: 6, y: 0, z: 2, tipo: 'chao' },
-      /* ---- z = 3 ---- */
-      { x: 0, y: 0, z: 3, tipo: 'chao' },
-      { x: 1, y: 0, z: 3, tipo: 'chao' },
-      { x: 2, y: 0, z: 3, tipo: 'chao' },
-      { x: 3, y: 0, z: 3, tipo: 'chao' },
-      { x: 4, y: 0, z: 3, tipo: 'chao' },
-      { x: 5, y: 0, z: 3, tipo: 'chao' },
-      { x: 6, y: 0, z: 3, tipo: 'chao' },
-      /* ---- z = 4 ---- */
-      { x: 0, y: 0, z: 4, tipo: 'chao' },
-      { x: 2, y: 0, z: 4, tipo: 'chao' },
-      { x: 3, y: 0, z: 4, tipo: 'parede' },
-      { x: 4, y: 0, z: 4, tipo: 'chao' },
-      { x: 5, y: 0, z: 4, tipo: 'chao' },
-      { x: 6, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 7, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 7, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 7, y: 0, z: 2, tipo: 'pulo' },
+      /* ---- z = 0 ---- */
+      { x: 8, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 8, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 8, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 6, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 6, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 6, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 7, y: 0, z: 6, tipo: 'pulo' },
+      /* ---- z = 7 ---- */
+      { x: 7, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 7, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 8, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 8, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 8, y: 0, z: 8, tipo: 'chao' },
     ]
   },
 
@@ -1675,6 +1698,729 @@ export const NIVEIS = [
       /* ---- z = 1 ---- */
       { x: 3, y: 0, z: 1, tipo: 'elevador',
         elev: { eixo: 'x', para: { x: 5, y: 0, z: 1 } } },
+    ]
+  },
+
+  {
+    nome: 'Fase 19 — Relevo Ondulado',
+    moedas: 3, distanciaMoedas: 2, seed: 1900,
+    blocos: [
+      /* ---- z = 0 ---- */
+      { x: 0, y: 1, z: 0, tipo: 'chao' },
+      { x: 0, y: 0, z: 0, tipo: 'parede' },
+      { x: 0, y: 2, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 0, y: 1, z: 1, tipo: 'chao' },
+      { x: 0, y: 0, z: 1, tipo: 'parede' },
+      { x: 0, y: 2, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 0, y: 1, z: 2, tipo: 'chao' },
+      { x: 0, y: 0, z: 2, tipo: 'parede' },
+      { x: 0, y: 2, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 0, y: 1, z: 3, tipo: 'chao' },
+      { x: 0, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 0, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 0, y: 1, z: 5, tipo: 'chao' },
+      { x: 0, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 0, y: 1, z: 6, tipo: 'chao' },
+      { x: 0, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 0, y: 1, z: 7, tipo: 'chao' },
+      { x: 0, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 0, y: 1, z: 8, tipo: 'chao' },
+      { x: 0, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 0, y: 1, z: 9, tipo: 'chao' },
+      { x: 0, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 1, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 1, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 1, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 1, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 1, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 1, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 1, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 1, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 1, y: 1, z: 8, tipo: 'chao' },
+      { x: 1, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 1, y: 1, z: 9, tipo: 'chao' },
+      { x: 1, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 2, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 2, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 2, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 2, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 2, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 2, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 2, y: 1, z: 9, tipo: 'chao' },
+      { x: 2, y: 0, z: 9, tipo: 'parede' },
+      { x: 2, y: 2, z: 9, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 3, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 3, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 3, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 3, y: 0, z: 4, tipo: 'spawn' },
+      /* ---- z = 5 ---- */
+      { x: 3, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 3, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 3, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 3, y: 1, z: 9, tipo: 'chao' },
+      { x: 3, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 4, y: 1, z: 0, tipo: 'chao' },
+      { x: 4, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 4, y: 1, z: 1, tipo: 'chao' },
+      { x: 4, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 4, y: 1, z: 2, tipo: 'chao' },
+      { x: 4, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 4, y: 1, z: 3, tipo: 'chao' },
+      { x: 4, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 4, y: 1, z: 4, tipo: 'chao' },
+      { x: 4, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 4, y: 1, z: 5, tipo: 'chao' },
+      { x: 4, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 4, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 5, y: 1, z: 0, tipo: 'chao' },
+      { x: 5, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 5, y: 1, z: 1, tipo: 'chao' },
+      { x: 5, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 5, y: 1, z: 2, tipo: 'chao' },
+      { x: 5, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 5, y: 1, z: 3, tipo: 'chao' },
+      { x: 5, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 5, y: 1, z: 4, tipo: 'chao' },
+      { x: 5, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 5, y: 1, z: 5, tipo: 'chao' },
+      { x: 5, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 5, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 5, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 5, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 6, y: 0, z: 1, tipo: 'chao' },
+      { x: 6, y: 1, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 6, y: 1, z: 2, tipo: 'chao' },
+      { x: 6, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 6, y: 1, z: 3, tipo: 'chao' },
+      { x: 6, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 6, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 6, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 6, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 6, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 6, y: 1, z: 8, tipo: 'chao' },
+      { x: 6, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 6, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 7, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 7, y: 1, z: 2, tipo: 'chao' },
+      { x: 7, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 7, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 7, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 7, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 7, y: 1, z: 7, tipo: 'chao' },
+      { x: 7, y: 0, z: 7, tipo: 'parede' },
+      { x: 7, y: 2, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 7, y: 1, z: 8, tipo: 'chao' },
+      { x: 7, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 7, y: 1, z: 9, tipo: 'chao' },
+      { x: 7, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 8, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 8, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 8, y: 1, z: 2, tipo: 'chao' },
+      { x: 8, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 8, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 8, y: 1, z: 4, tipo: 'chao' },
+      { x: 8, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 8, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 8, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 8, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 8, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 9, y: 1, z: 0, tipo: 'chao' },
+      { x: 9, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 9, y: 1, z: 1, tipo: 'chao' },
+      { x: 9, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 9, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 9, y: 1, z: 3, tipo: 'chao' },
+      { x: 9, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 9, y: 1, z: 4, tipo: 'chao' },
+      { x: 9, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 9, y: 1, z: 5, tipo: 'chao' },
+      { x: 9, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 9, y: 0, z: 8, tipo: 'chao' },
+    ]
+  },
+
+  {
+    nome: 'Fase 20 — Platôs',
+    moedas: 4, distanciaMoedas: 2, seed: 2000,
+    blocos: [
+      /* ---- z = 1 ---- */
+      { x: 0, y: 1, z: 1, tipo: 'chao' },
+      { x: 0, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 0, y: 1, z: 2, tipo: 'chao' },
+      { x: 0, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 0, y: 1, z: 3, tipo: 'chao' },
+      { x: 0, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 0, y: 1, z: 4, tipo: 'chao' },
+      { x: 0, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 0, y: 1, z: 5, tipo: 'chao' },
+      { x: 0, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 0, y: 1, z: 6, tipo: 'chao' },
+      { x: 0, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 0, y: 1, z: 7, tipo: 'chao' },
+      { x: 0, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 0, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 0, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 1, y: 0, z: 1, tipo: 'chao' },
+      { x: 1, y: 1, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 1, y: 1, z: 2, tipo: 'chao' },
+      { x: 1, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 1, y: 1, z: 3, tipo: 'chao' },
+      { x: 1, y: 0, z: 3, tipo: 'parede' },
+      { x: 1, y: 2, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 1, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 1, y: 1, z: 5, tipo: 'chao' },
+      { x: 1, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 1, y: 1, z: 6, tipo: 'chao' },
+      { x: 1, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 1, y: 1, z: 7, tipo: 'chao' },
+      { x: 1, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 1, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 2, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 2, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 2, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 2, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 2, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 2, y: 1, z: 6, tipo: 'chao' },
+      { x: 2, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 2, y: 1, z: 7, tipo: 'chao' },
+      { x: 2, y: 0, z: 7, tipo: 'parede' },
+      { x: 2, y: 2, z: 7, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 3, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 3, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 3, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 3, y: 0, z: 4, tipo: 'spawn' },
+      /* ---- z = 5 ---- */
+      { x: 3, y: 1, z: 5, tipo: 'chao' },
+      { x: 3, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 3, y: 1, z: 6, tipo: 'chao' },
+      { x: 3, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 3, y: 1, z: 7, tipo: 'chao' },
+      { x: 3, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 3, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 4, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 4, y: 1, z: 4, tipo: 'chao' },
+      { x: 4, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 4, y: 1, z: 5, tipo: 'chao' },
+      { x: 4, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 4, y: 1, z: 6, tipo: 'chao' },
+      { x: 4, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 4, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 4, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 4, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 5, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 5, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 5, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 5, y: 1, z: 4, tipo: 'chao' },
+      { x: 5, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 5, y: 1, z: 5, tipo: 'chao' },
+      { x: 5, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 5, y: 1, z: 6, tipo: 'chao' },
+      { x: 5, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 5, y: 1, z: 7, tipo: 'chao' },
+      { x: 5, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 5, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 5, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 6, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 6, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 6, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 6, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 6, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 6, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 6, y: 1, z: 6, tipo: 'chao' },
+      { x: 6, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 6, y: 1, z: 7, tipo: 'chao' },
+      { x: 6, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 6, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 6, y: 1, z: 9, tipo: 'chao' },
+      { x: 6, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 7, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 7, y: 0, z: 1, tipo: 'chao' },
+      { x: 7, y: 1, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 7, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 7, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 7, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 7, y: 1, z: 7, tipo: 'chao' },
+      { x: 7, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 7, y: 1, z: 8, tipo: 'chao' },
+      { x: 7, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 7, y: 1, z: 9, tipo: 'chao' },
+      { x: 7, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 8, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 8, y: 1, z: 1, tipo: 'chao' },
+      { x: 8, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 8, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 8, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 8, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 8, y: 1, z: 5, tipo: 'chao' },
+      { x: 8, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 8, y: 1, z: 6, tipo: 'chao' },
+      { x: 8, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 8, y: 1, z: 7, tipo: 'chao' },
+      { x: 8, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 8, y: 1, z: 8, tipo: 'chao' },
+      { x: 8, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 8, y: 1, z: 9, tipo: 'chao' },
+      { x: 8, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 9, y: 0, z: 0, tipo: 'chao' },
+      { x: 9, y: 1, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 9, y: 1, z: 1, tipo: 'chao' },
+      { x: 9, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 9, y: 1, z: 2, tipo: 'chao' },
+      { x: 9, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 9, y: 1, z: 3, tipo: 'chao' },
+      { x: 9, y: 0, z: 3, tipo: 'parede' },
+      { x: 9, y: 2, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 9, y: 1, z: 4, tipo: 'chao' },
+      { x: 9, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 9, y: 1, z: 5, tipo: 'chao' },
+      { x: 9, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 9, y: 1, z: 6, tipo: 'chao' },
+      { x: 9, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 9, y: 1, z: 7, tipo: 'chao' },
+      { x: 9, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 9, y: 1, z: 8, tipo: 'chao' },
+      { x: 9, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 9, y: 0, z: 9, tipo: 'chao' },
+    ]
+  },
+
+  {
+    nome: 'Fase 21 — Vales',
+    moedas: 3, distanciaMoedas: 2, seed: 2105,
+    blocos: [
+      /* ---- z = 2 ---- */
+      { x: 0, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 0, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 0, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 0, y: 1, z: 6, tipo: 'chao' },
+      { x: 0, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 0, y: 1, z: 7, tipo: 'chao' },
+      { x: 0, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 0, y: 1, z: 8, tipo: 'chao' },
+      { x: 0, y: 0, z: 8, tipo: 'parede' },
+      { x: 0, y: 2, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 0, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 0, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 1, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 1, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 1, y: 1, z: 3, tipo: 'chao' },
+      { x: 1, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 1, y: 1, z: 4, tipo: 'chao' },
+      { x: 1, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 1, y: 1, z: 5, tipo: 'chao' },
+      { x: 1, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 1, y: 1, z: 6, tipo: 'chao' },
+      { x: 1, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 1, y: 1, z: 7, tipo: 'chao' },
+      { x: 1, y: 0, z: 7, tipo: 'parede' },
+      { x: 1, y: 2, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 1, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 1, y: 1, z: 9, tipo: 'chao' },
+      { x: 1, y: 0, z: 9, tipo: 'parede' },
+      { x: 1, y: 2, z: 9, tipo: 'parede' },
+      /* ---- z = 10 ---- */
+      { x: 1, y: 1, z: 10, tipo: 'chao' },
+      { x: 1, y: 0, z: 10, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 2, y: 1, z: 0, tipo: 'chao' },
+      { x: 2, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 2, y: 1, z: 1, tipo: 'chao' },
+      { x: 2, y: 0, z: 1, tipo: 'parede' },
+      /* ---- z = 2 ---- */
+      { x: 2, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 2, y: 1, z: 3, tipo: 'chao' },
+      { x: 2, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 2, y: 1, z: 4, tipo: 'chao' },
+      { x: 2, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 2, y: 1, z: 5, tipo: 'chao' },
+      { x: 2, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 2, y: 1, z: 6, tipo: 'chao' },
+      { x: 2, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 2, y: 1, z: 7, tipo: 'chao' },
+      { x: 2, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 2, y: 1, z: 8, tipo: 'chao' },
+      { x: 2, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 2, y: 1, z: 9, tipo: 'chao' },
+      { x: 2, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 10 ---- */
+      { x: 2, y: 1, z: 10, tipo: 'chao' },
+      { x: 2, y: 0, z: 10, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 3, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 3, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 3, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 3, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 3, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 3, y: 1, z: 5, tipo: 'chao' },
+      { x: 3, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 3, y: 1, z: 6, tipo: 'chao' },
+      { x: 3, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 3, y: 1, z: 7, tipo: 'chao' },
+      { x: 3, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 3, y: 1, z: 8, tipo: 'chao' },
+      { x: 3, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 3, y: 0, z: 9, tipo: 'chao' },
+      { x: 3, y: 1, z: 9, tipo: 'parede' },
+      /* ---- z = 10 ---- */
+      { x: 3, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 4, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 4, y: 1, z: 2, tipo: 'chao' },
+      { x: 4, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 4, y: 1, z: 3, tipo: 'chao' },
+      { x: 4, y: 0, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 4, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 4, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 4, y: 1, z: 6, tipo: 'chao' },
+      { x: 4, y: 0, z: 6, tipo: 'parede' },
+      { x: 4, y: 2, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 4, y: 1, z: 7, tipo: 'chao' },
+      { x: 4, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 4, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 4, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 5, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 5, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 5, y: 1, z: 2, tipo: 'chao' },
+      { x: 5, y: 0, z: 2, tipo: 'parede' },
+      /* ---- z = 3 ---- */
+      { x: 5, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 5, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 5, y: 0, z: 5, tipo: 'spawn' },
+      /* ---- z = 6 ---- */
+      { x: 5, y: 1, z: 6, tipo: 'chao' },
+      { x: 5, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 5, y: 1, z: 7, tipo: 'chao' },
+      { x: 5, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 5, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 5, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 5, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 6, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 6, y: 1, z: 4, tipo: 'chao' },
+      { x: 6, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 6, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 6, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 6, y: 1, z: 7, tipo: 'chao' },
+      { x: 6, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 6, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 6, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 7, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 7, y: 1, z: 4, tipo: 'chao' },
+      { x: 7, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 7, y: 0, z: 5, tipo: 'chao' },
+      /* ---- z = 6 ---- */
+      { x: 7, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 7, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 7, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 7, y: 0, z: 10, tipo: 'chao' },
+      /* ---- z = 0 ---- */
+      { x: 8, y: 1, z: 0, tipo: 'chao' },
+      { x: 8, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 8, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 8, y: 0, z: 3, tipo: 'chao' },
+      { x: 8, y: 1, z: 3, tipo: 'parede' },
+      /* ---- z = 4 ---- */
+      { x: 8, y: 1, z: 4, tipo: 'chao' },
+      { x: 8, y: 0, z: 4, tipo: 'parede' },
+      /* ---- z = 5 ---- */
+      { x: 8, y: 1, z: 5, tipo: 'chao' },
+      { x: 8, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 8, y: 0, z: 6, tipo: 'chao' },
+      /* ---- z = 7 ---- */
+      { x: 8, y: 1, z: 7, tipo: 'chao' },
+      { x: 8, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 8, y: 0, z: 8, tipo: 'chao' },
+      /* ---- z = 9 ---- */
+      { x: 8, y: 0, z: 9, tipo: 'chao' },
+      /* ---- z = 10 ---- */
+      { x: 8, y: 1, z: 10, tipo: 'chao' },
+      { x: 8, y: 0, z: 10, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 9, y: 1, z: 0, tipo: 'chao' },
+      { x: 9, y: 0, z: 0, tipo: 'parede' },
+      /* ---- z = 1 ---- */
+      { x: 9, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 9, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 9, y: 1, z: 5, tipo: 'chao' },
+      { x: 9, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 9, y: 1, z: 6, tipo: 'chao' },
+      { x: 9, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 9, y: 1, z: 7, tipo: 'chao' },
+      { x: 9, y: 0, z: 7, tipo: 'parede' },
+      /* ---- z = 8 ---- */
+      { x: 9, y: 1, z: 8, tipo: 'chao' },
+      { x: 9, y: 0, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 9, y: 1, z: 9, tipo: 'chao' },
+      { x: 9, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 10 ---- */
+      { x: 9, y: 1, z: 10, tipo: 'chao' },
+      { x: 9, y: 0, z: 10, tipo: 'parede' },
+      /* ---- z = 0 ---- */
+      { x: 10, y: 0, z: 0, tipo: 'chao' },
+      /* ---- z = 1 ---- */
+      { x: 10, y: 0, z: 1, tipo: 'chao' },
+      /* ---- z = 2 ---- */
+      { x: 10, y: 0, z: 2, tipo: 'chao' },
+      /* ---- z = 3 ---- */
+      { x: 10, y: 0, z: 3, tipo: 'chao' },
+      /* ---- z = 4 ---- */
+      { x: 10, y: 0, z: 4, tipo: 'chao' },
+      /* ---- z = 5 ---- */
+      { x: 10, y: 1, z: 5, tipo: 'chao' },
+      { x: 10, y: 0, z: 5, tipo: 'parede' },
+      /* ---- z = 6 ---- */
+      { x: 10, y: 1, z: 6, tipo: 'chao' },
+      { x: 10, y: 0, z: 6, tipo: 'parede' },
+      /* ---- z = 7 ---- */
+      { x: 10, y: 0, z: 7, tipo: 'chao' },
+      /* ---- z = 8 ---- */
+      { x: 10, y: 1, z: 8, tipo: 'chao' },
+      { x: 10, y: 0, z: 8, tipo: 'parede' },
+      { x: 10, y: 2, z: 8, tipo: 'parede' },
+      /* ---- z = 9 ---- */
+      { x: 10, y: 1, z: 9, tipo: 'chao' },
+      { x: 10, y: 0, z: 9, tipo: 'parede' },
+      /* ---- z = 10 ---- */
+      { x: 10, y: 1, z: 10, tipo: 'chao' },
+      { x: 10, y: 0, z: 10, tipo: 'parede' },
+      { x: 10, y: 2, z: 10, tipo: 'parede' },
     ]
   }
 ];

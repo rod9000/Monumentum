@@ -40,7 +40,7 @@ export function sortearMoedas(dados, grade, sementeFixa = CONFIG.sementeFixa) {
   // 3) NUNCA o bloco do elevador — ele viraria moeda e a plataforma sumiria
   //    (o elevador continua existindo na grade, mas a malha vira uma moeda)
   const candidatos = grade.lista.filter(b =>
-    grade.andavel(b) && b.tipo !== 'ponte' && b !== spawn && !b.elev && (dist.get(chave(b.x, b.y, b.z)) ?? Infinity) >= distMin);
+    grade.andavel(b) && b.tipo !== 'ponte' && b.tipo !== 'pulo' && b !== spawn && !b.elev && (dist.get(chave(b.x, b.y, b.z)) ?? Infinity) >= distMin);
   embaralhar(candidatos, rnd);
 
   const escolhidas = [];

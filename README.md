@@ -1,13 +1,14 @@
 # Diorama Puzzle — protótipo 3D (Three.js)
 
 Protótipo de jogo de puzzle 3D em estilo **diorama** (Captain Toad / Mekorama),
-rodando direto no navegador com **HTML + CSS + JavaScript vanilla** e
-**Three.js via CDN**. Um único arquivo: [`diorama-puzzle.html`](./diorama-puzzle.html).
+rodando direto no navegador com **HTML + CSS + JavaScript** e **Three.js embutido**
+(sem CDN). Um único arquivo: [`diorama-puzzle.html`](./diorama-puzzle.html).
 
 ## Como jogar
 
-Abra `diorama-puzzle.html` no navegador (duplo clique — não precisa de servidor;
-a única exigência é conexão com a internet, por causa da CDN do Three.js).
+Abra `diorama-puzzle.html` no navegador (duplo clique — não precisa de servidor
+nem de internet: o Three.js já vem dentro do arquivo). No celular, também funciona
+pelo link do GitHub Pages.
 
 | Ação | Como fazer |
 |---|---|
@@ -32,6 +33,31 @@ O progresso é salvo no navegador (`localStorage`) — ao reabrir, você continu
 * **O personagem mantém a direção** em que andou por último (não fica girando
   para a câmera enquanto está parado). Se preferir o comportamento "olha para o
   jogador quando parado", mude `CONFIG.personagemEncaraACamera` para `true`.
+
+## Progresso, pontuação, som e menu
+
+* **Moedas:** as moedas de uma tentativa só entram no total salvo quando a fase é
+  **concluída**. Cair no vão, apertar ↺ ou sair da fase descarta as moedas da
+  tentativa. Cada fase conta suas moedas uma vez (refazer não rende de novo).
+* **Meta e estrelas (pontuação):** cada fase tem uma **meta**: o menor número de passos
+  para pegar todas as moedas, calculado pelo próprio jogo (`src/par.js`). O contador 👣
+  mostra os passos e a meta (ex.: `👣 12 · meta 20`). Cada passo para uma célula vizinha
+  conta 1, e o pulo também conta 1. A viagem de elevador não conta (só entrar e sair), e
+  os giros da câmera também não contam.
+  - ⭐⭐⭐ com menos de 1,25 × meta (com meta 20: até 24 passos);
+  - ⭐⭐ de 1,25 × meta até 1,5 × meta (com meta 20: de 25 a 30 passos);
+  - ⭐ acima de 1,5 × meta (com meta 20: mais de 30 passos).
+  Como as moedas são sorteadas a cada tentativa, a meta muda junto com elas (as fases
+  com semente fixa têm sempre a mesma meta). Na conclusão aparecem passos, meta, recorde
+  da fase e tempo.
+* **Menu ☰:** lista as fases abertas, com as concluídas marcadas e as estrelas. As
+  travadas aparecem desabilitadas (abrem ao concluir a anterior).
+* **Som 🔊/🔇:** efeitos sintetizados (passo, moeda, pulo, queda, giro, fase). O som
+  começa depois do primeiro toque ou tecla. O mudo fica salvo no navegador.
+* **Dicas:** ao entrar numa fase com pontes ou com blocos de pulo, o jogo explica a
+  mecânica por alguns segundos.
+* Progresso salvo em `localStorage` (chave `diorama-progresso-v2`). Versões antigas
+  são migradas automaticamente.
 
 ## Criar a Fase 2 (e a 3, a 4…)
 
@@ -97,7 +123,7 @@ blocos adjacentes, mude `permitirCliqueDistante` para `false` em `CONFIG`.
 |---|---|---|
 | 1 — Primeiros Passos | plano + terraço | pracinha 5×5, quina de 2 blocos |
 | 2 — O Salão | horizontal 6×6 | labirinto de paredes |
-| 3 — A Travessia | horizontal 7×5 | pontes sobre o vazio (lacunas) |
+| 3 — A Travessia | horizontal 9×9 | três ilhas ligadas por **blocos de pulo**: duas setas seguidas sobre o vão, e o par do outro lado volta |
 | 4 — A Escada | **vertical** | escada de 4 andares na borda + mirante no topo |
 | 5 — O Zigurate | **vertical** | pirâmide de 5 andares em espiral |
 | 6 — Dois Mundos | **elevador horizontal** | duas ilhas separadas por um vão de 3 células; tem de pegar o elevador e **esperar** a travessia |
@@ -113,7 +139,10 @@ blocos adjacentes, mude `permitirCliqueDistante` para `false` em `CONFIG`.
 | 16 — Ilusão de Ótica | **ponte de câmera** | duas ilhas separadas por um vão; a ponte só existe com a câmera girada 90° |
 | 17 — Dois Ângulos | **duas pontes** | pontes em ângulos diferentes, em sequência (girar 90° e depois 270°) |
 | 18 — Ponte e Elevador | ponte + elevador | elevador entre as ilhas e uma ponte que só aparece com a câmera em 180° |
-| 19 em diante | **procedural** | labirintos gerados a partir do número da fase (ver abaixo) |
+| 19 — Relevo Ondulado | **relevo** (ruído) | mapa orgânico com platôs e vales, semente fixa |
+| 20 — Platôs | **relevo** (ruído) | mais andares e paredes em platôs |
+| 21 — Vales | **relevo** (ruído) | o maior mapa de relevo, com vales e paredes |
+| 22 em diante | **procedural** | labirintos, ilhas e relevo gerados a partir do número da fase (ver abaixo) |
 
 Na 13 a graça é **ler o estado do elevador**: se ele acabou de sair, compensa mais subir a escada.
 
@@ -175,6 +204,16 @@ pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }]
 
 A ponte precisa ser reta (horizontal ou vertical).
 
+### Controles de toque
+
+No celular e no tablet (detectado pelo ponteiro de toque), o jogo mostra um **D-pad**
+(▲ ▼ ◀ ▶) que usa as mesmas regras das setas do teclado; duas toques seguidos na
+mesma direção sobre um bloco de pulo fazem o pulo. Gestos no canvas: **arraste
+horizontal** gira a câmera em 90° (rápido), **pinça** com dois dedos dá zoom, e um
+**toque curto** anda até o bloco tocado (se o toque não acertar um bloco, vai para o
+mais próximo). Os botões Q/E e +/− continuam na tela. A lógica está em `src/toque.js`
+(testada em `teste/toque.mjs`).
+
 ### Fases procedurais
 
 Depois das fases manuais, o jogo não termina: `src/procedural.js` gera a fase
@@ -182,6 +221,8 @@ Depois das fases manuais, o jogo não termina: `src/procedural.js` gera a fase
 é validado (piso e moedas alcançáveis) antes de ser usado. Há duas famílias de mapa:
 
 * **labirinto**: labirinto perfeito com atalhos;
+* **relevo**: mapa orgânico. Um ruído de Perlin com semente (`src/ruido.js`) define a
+  altura das células (vazio, térreo ou um andar acima) e onde ficam as paredes.
 * **ilhas em andares**: 3 ou mais ilhas (2 andares), ligadas por pontes de câmera,
   elevadores horizontais, passarelas que sobem um andar e **elevadores verticais**
   que levam do térreo ao andar de cima.
@@ -194,7 +235,15 @@ O HUD mostra o total como `N/∞`.
 
 | Arquivo | O que faz |
 |---|---|
-| `src/main.js` | cena 3D, câmera, personagem, movimentação, HUD e loop |
+| `src/main.js` | regras do jogo: construção da fase, movimentação, pulo, queda, moedas, conclusão e loop |
+| `src/cena.js` | 3D: renderer, câmera isométrica, luzes e materiais |
+| `src/hud.js` | textos do HUD, avisos, popup de moeda e tela de conclusão |
+| `src/menu.js` | menu de fases (☰) |
+| `src/som.js` | efeitos sonoros (WebAudio) e mudo salvo |
+| `src/progresso.js` | moedas, fases concluídas, recordes e estrelas (salvos no navegador) |
+| `src/par.js` | meta da fase: menor número de passos até todas as moedas, e as estrelas pela meta |
+| `src/estado.js` | estado da partida compartilhado |
+| `src/toque.js` | gestos de toque, D-pad e bloco mais próximo do toque |
 | `src/dados/niveis.js` | dados das fases manuais (`NIVEIS`) |
 | `src/dados/geradores.js` | labirinto, espiral e escada usados pelos geradores |
 | `src/grade.js` | `Grade` (caminhada, elevadores e pontes), alcance e distâncias — lógica pura |
@@ -203,7 +252,8 @@ O HUD mostra o total como `N/∞`.
 | `src/procedural.js` | fases infinitas determinísticas |
 | `src/config.js` | `CONFIG` (ajustes finos) |
 | `src/aleatorio.js` | RNG determinístico (semente) |
-| `index.template.html` + `build.mjs` | template e build que geram `diorama-puzzle.html` |
+| `index.template.html` + `build.mjs` | template e build que geram `diorama-puzzle.html` (com o Three.js dentro) |
+| `manifest.webmanifest`, `icone.svg` | app para celular (tela cheia e ícone ao adicionar à tela inicial) |
 
 Ajustes finos ficam no objeto `CONFIG` (`src/config.js`): duração do passo,
 altura do pulo e da ponte, suavidade do giro, margem de enquadramento etc.
@@ -215,7 +265,8 @@ Requer Node.js. `npm install` uma vez (instala o esbuild) e depois:
 
 ```bash
 npm run build                # gera diorama-puzzle.html a partir de src/
-npm test                     # roda todas as suítes abaixo
+npm test                     # roda todas as suítes abaixo (rápidas)
+npm run test:e2e             # testes no navegador de verdade (Edge), celular e desktop
 ```
 
 ```bash
@@ -224,8 +275,18 @@ node teste/randomizacao.mjs  # sorteio de moedas: 120+300 sorteios por fase
 node teste/elevadores.mjs    # embarque, travessia, desembarque e moedas do vão
 node teste/pontes.mjs        # pontes de câmera: ângulo certo/errado e queda no vão
 node teste/procedural.mjs    # 500 fases procedurais válidas e fluxo de jogo
-node teste/testar-jogo.mjs   # smoke test: bordas, sorteio, câmera, zoom, Q/E, progressão
+node teste/toque.mjs        # gestos, D-pad e bloco mais próximo do toque
+node teste/par.mjs         # meta da fase (passos até cada moeda), elevador, pulo e estrelas
+node teste/progresso.mjs    # moedas por conclusão, migração, recordes, estrelas pelo par e som
+node teste/fluxo.mjs        # moedas ao reiniciar, pontuação, menu, dicas e botão de som
+node teste/estrutura.mjs    # título, manifest, sem CDN e elementos do HTML gerado
+node teste/testar-jogo.mjs  # smoke test: bordas, sorteio, câmera, zoom, Q/E, progressão
 ```
+
+Os testes de ponta a ponta (`e2e/jogo.spec.mjs`) abrem o HTML gerado no Microsoft Edge
+(instalado no Windows; `channel: 'msedge'`): toque, arraste, pinça, D-pad, menu, som e
+layout de celular. Para inspecionar o estado durante um teste, abra o jogo com `?debug`
+na URL (expõe `window.__DIORAMA_DEBUG__`).
 
 Os testes carregam `src/main.js` via esbuild (`teste/carregar-jogo.mjs`), com o
 Three.js substituído por `teste/mock-three.mjs`.

@@ -114,8 +114,8 @@ for (let n = 0; n < 300; n++) {
   mod.sortearMoedas(f3, g);
   g.lista.filter(b => b.tipo === 'moeda').forEach(m => posicoesF3.add(chave(m.x, m.y, m.z)));
 }
-console.log(`  em 300 sorteios, as moedas apareceram em ${posicoesF3.size} células diferentes`);
-ok(posicoesF3.size >= 10, 'a Fase 3 distribui moedas por muitas células (não fica sempre igual)');
+console.log(`  em 300 sorteios, as moedas apareceram em ${posicoesF3.size} células (semente fixa)`);
+ok(posicoesF3.size === f3.moedas, 'a Fase 3 tem semente fixa: as mesmas moedas em todas as partidas');
 
 console.log('\n' + (falhas === 0 ? '>>> RANDOMIZAÇÃO OK' : `>>> ${falhas} FALHA(S)`));
 process.exit(falhas === 0 ? 0 : 1);

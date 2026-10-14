@@ -2,8 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Diorama Puzzle — Protótipo (Fase 1)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="Diorama Puzzle: puzzle 3D em grade, estilo Captain Toad." />
+<meta name="theme-color" content="#bfe3f2" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Diorama" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='34' width='26' height='24' rx='4' fill='%238ed679'/%3E%3Crect x='32' y='18' width='26' height='24' rx='4' fill='%23e8845f'/%3E%3Ccircle cx='46' cy='10' r='8' fill='%23ffd34d'/%3E%3C/svg%3E" />
+<title>Diorama Puzzle</title>
 
 <style>
   /* ============================================================
@@ -145,7 +151,43 @@
   button:active { transform: translateY(0) scale(.97); }
   button:focus-visible { outline: 2px solid #ffd34d; outline-offset: 2px; }
 
+  /* contraste: botões do HUD com fundo escuro (no céu claro, o translúcido sumia) */
+  .grupo-botoes button, #botoes-giro button, #btn-menu, #btn-som, #btn-reiniciar-hud, #dpad button {
+    background: rgba(11, 18, 32, .62);
+    border-color: rgba(255, 255, 255, .28);
+    color: #ffffff;
+  }
+  .grupo-botoes button:hover, #botoes-giro button:hover, #btn-menu:hover, #btn-som:hover,
+  #btn-reiniciar-hud:hover, #dpad button:hover { background: rgba(11, 18, 32, .82); }
+  .grupo-botoes button:disabled, #btn-menu:disabled { opacity: .45; cursor: default; }
+
   #botoes-giro { display: flex; gap: 10px; justify-content: center; }
+
+  /* tela de conclusão: estatísticas da tentativa */
+  #estatisticas { font-size: 13.5px; font-weight: 700; margin: -10px 0 16px; }
+
+  /* menu de fases (☰) */
+  #menu-fases {
+    position: fixed; inset: 0; display: none; place-items: center; padding: 14px;
+    background: rgba(2, 6, 15, .55); z-index: 15;
+  }
+  #menu-fases.visivel { display: grid; }
+  .cartao-menu { width: min(520px, 100%); max-height: 88vh; display: flex; flex-direction: column; gap: 10px; }
+  .cabecalho-menu { display: flex; justify-content: space-between; align-items: center; }
+  .cabecalho-menu h2 { font-size: 20px; margin: 0; }
+  #grade-fases {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 8px; overflow: auto; padding: 4px;
+  }
+  #grade-fases button {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 64px; font-size: 18px;
+  }
+  #grade-fases button small { font-size: 11px; margin-top: 2px; }
+  #grade-fases .fase-concluida { background: rgba(47, 109, 58, .9); }
+  #grade-fases .fase-atual { outline: 2px solid #ffd34d; outline-offset: 2px; }
+  #grade-fases .fase-travada { opacity: .4; }
+  .legenda-menu { font-size: 12.5px; opacity: .8; margin: 0; }
 
   #dica {
     text-align: center;
@@ -218,25 +260,69 @@
     to   { opacity: 1; transform: scale(1) translateY(0); }
   }
 
-  /* ---------- erro de carregamento do CDN ---------- */
-  #erro-cdn {
-    position: fixed;
-    inset: 0;
-    display: none;
-    place-items: center;
-    background: #0b1220;
-    z-index: 20;
-    text-align: center;
-    padding: 30px;
-    line-height: 1.6;
-  }
-  #erro-cdn.visivel { display: grid; }
 
   @media (max-width: 560px) {
     .cartao { padding: 8px 11px; }
     #nome-fase { font-size: 16px; }
     button { padding: 10px 12px; font-size: 14px; }
     #dica { font-size: 11.5px; }
+  }
+  /* ---------- toque (celular e tablet): classe "toque" no <body> ---------- */
+  html, body { -webkit-tap-highlight-color: transparent; }
+  body { user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
+  #dpad { display: none; }
+  #dica-toque {
+    display: none;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.5;
+    opacity: .85;
+    background: rgba(11, 18, 32, .5);
+    border-radius: 10px;
+    padding: 6px 10px;
+  }
+  body.toque { --tecla: clamp(44px, 6vh, 56px); }
+  body.toque #dpad {
+    display: grid;
+    grid-template-columns: repeat(3, var(--tecla));
+    grid-template-rows: repeat(3, var(--tecla));
+    gap: 6px;
+  }
+  body.toque #dpad button { width: var(--tecla); height: var(--tecla); padding: 0; font-size: 22px; }
+  body.toque #dpad .vazio { visibility: hidden; }
+  body.toque #dica { display: none; }
+  body.toque #dica-toque { display: block; }
+  body.toque h1, body.toque #total-moedas { display: none; }
+  body.toque button { min-height: 44px; }
+  body.toque #botoes-giro button, body.toque .grupo-botoes button { padding: 10px 14px; }
+  body.toque .hud {
+    padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right))
+             calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+  }
+  body.toque .rodape { gap: 8px; }
+  .curto { display: none; }
+  body.toque .longo { display: none; }
+  body.toque .curto { display: inline; }
+  body.toque #btn-zoom-menos, body.toque #btn-zoom-mais { display: none; }   /* a pinça dá o zoom */
+  body.toque #btn-fase-anterior, body.toque #btn-fase-proxima,
+  body.toque #btn-reiniciar-hud { min-width: 44px; padding: 8px 10px; }
+  body.toque .linha { flex-wrap: wrap; justify-content: flex-start; }
+  body.toque .acoes { flex-wrap: wrap; width: 100%; justify-content: flex-start; }
+  body.toque #dica-toque { width: calc(100vw - 28px); box-sizing: border-box; min-width: 0; overflow-wrap: anywhere; }
+  body.toque #botoes-giro { gap: 8px; }
+  /* celular deitado (pouca altura): D-pad menor, num canto, sem cobrir o diorama */
+  @media (max-height: 500px) {
+    body.toque #dpad {
+      position: fixed;
+      right: calc(12px + env(safe-area-inset-right));
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      grid-template-columns: repeat(3, 46px);
+      grid-template-rows: repeat(3, 46px);
+      gap: 4px;
+      z-index: 5;
+    }
+    body.toque #dpad button { width: 46px; height: 46px; font-size: 18px; min-height: 0; }
+    body.toque #dica-toque { width: calc(100vw - 240px); }   /* deixa o canto do D-pad livre */
   }
 </style>
 </head>
@@ -258,9 +344,14 @@
         <div id="total-moedas">Total 🪙 0/0</div>
       </div>
       <div class="acoes">
+        <button id="btn-menu" title="Escolher fase" aria-label="Escolher fase">☰</button>
         <div class="cartao contador-moedas">
           <span class="rotulo">Moedas</span>
           <span id="contador-moedas">🪙 0/0</span>
+        </div>
+        <div class="cartao contador-moedas">
+          <span class="rotulo">Passos</span>
+          <span id="passos">👣 0</span>
         </div>
         <div class="grupo-botoes">
           <button id="btn-fase-anterior" title="Fase anterior">◀</button>
@@ -271,14 +362,29 @@
           <button id="btn-zoom-mais" title="Aproximar">＋</button>
         </div>
         <button id="btn-reiniciar-hud" title="Recomeçar a fase">↺</button>
+        <button id="btn-som" title="Desligar o som" aria-label="Som">🔊</button>
       </div>
     </div>
 
     <div class="rodape">
       <div id="aviso"></div>
+      <div id="dpad" aria-label="Setas de direção">
+        <span class="vazio"></span>
+        <button id="btn-dpad-cima" aria-label="Para cima">▲</button>
+        <span class="vazio"></span>
+        <button id="btn-dpad-esq" aria-label="Para a esquerda">◀</button>
+        <span class="vazio"></span>
+        <button id="btn-dpad-dir" aria-label="Para a direita">▶</button>
+        <span class="vazio"></span>
+        <button id="btn-dpad-baixo" aria-label="Para baixo">▼</button>
+        <span class="vazio"></span>
+      </div>
       <div id="botoes-giro">
-        <button id="btn-girar-esq">⟲ Girar p/ Esquerda</button>
-        <button id="btn-girar-dir">⟳ Girar p/ Direita</button>
+        <button id="btn-girar-esq" aria-label="Girar para a esquerda"><span class="longo">⟲ Girar p/ Esquerda</span><span class="curto" aria-hidden="true">⟲</span></button>
+        <button id="btn-girar-dir" aria-label="Girar para a direita"><span class="longo">⟳ Girar p/ Direita</span><span class="curto" aria-hidden="true">⟳</span></button>
+      </div>
+      <div id="dica-toque">
+        Toque num bloco para andar<br>arraste para girar · pinça para zoom
       </div>
       <div id="dica">
         Clique na face de cima de um bloco ao lado do personagem para andar &nbsp;•&nbsp;
@@ -295,6 +401,7 @@
       <div class="trofeu">🏆</div>
       <h2 id="titulo-conclusao">Fase Concluída!</h2>
       <p id="texto-conclusao">Você coletou todas as moedas do diorama.</p>
+      <p id="estatisticas"></p>
       <div class="botoes-conclusao">
         <button id="btn-proxima" class="destaque">Próxima Fase ▶</button>
         <button id="btn-reiniciar">Jogar de Novo</button>
@@ -302,34 +409,17 @@
     </div>
   </div>
 
-  <!-- Mensagem caso a CDN do Three.js não carregue -->
-  <div id="erro-cdn">
-    <div>
-      <h2>Não foi possível carregar o Three.js 😕</h2>
-      <p>Verifique sua conexão com a internet (o jogo usa a CDN jsDelivr)<br />
-      e recarregue a página.</p>
+  <!-- Menu de fases (☰): grade com as fases abertas, concluídas e travadas -->
+  <div id="menu-fases" role="dialog" aria-modal="true" aria-labelledby="titulo-menu">
+    <div class="cartao cartao-menu">
+      <div class="cabecalho-menu">
+        <h2 id="titulo-menu">Escolher fase</h2>
+        <button id="btn-fechar-menu" aria-label="Fechar">✕</button>
+      </div>
+      <div id="grade-fases"></div>
+      <p class="legenda-menu">⭐ concluída com estrelas · as travadas abrem ao concluir a anterior</p>
     </div>
   </div>
-
-  <!-- Three.js via CDN (import map = forma moderna de carregar ES Modules) -->
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
-
-  <!-- Fallback: avisa se a CDN não responder -->
-  <script>
-    window.addEventListener('load', function () {
-      setTimeout(function () {
-        if (!window.__DIORAMA_PRONTO__) {
-          document.getElementById('erro-cdn').classList.add('visivel');
-        }
-      }, 8000);
-    });
-  </script>
 
   <script type="module">
 <!--BUNDLE-->
