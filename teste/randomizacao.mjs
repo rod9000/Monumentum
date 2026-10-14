@@ -75,28 +75,47 @@ for (let i = 0; i < mod.NIVEIS.length; i++) {
     if (moedas.length !== quantidade) sempreQuantidadeCerta = false;
 
     const spawn = g.lista.find(b => b.tipo === 'spawn');
-    const elev = g.lista.find(b => b.elev);
-    // em fases com elevador, a moeda pode ficar do "lado de lá": alcançável
-    // a pé do spawn OU a pé do destino do elevador
-    const la = elev ? elev.elev.para : null;
-    const alcancaAPe = (de, celula) => {
-      const alvo = chave(celula.x, celula.y, celula.z);
-      const vistos = new Set([chave(de.x, de.y, de.z)]);
-      const fila = [de];
-      while (fila.length) {
-        const a = fila.shift();
-        if (chave(a.x, a.y, a.z) === alvo) return true;
-        for (const v of g.vizinhos(a)) {
-          const k = chave(v.x, v.y, v.z);
-          if (!vistos.has(k)) { vistos.add(k); fila.push(v); }
-        }
+    // alcançabilidade: réplica fiel de `distanciasComElevador` do jogo
+    // (BFS a pé + elevadores como PONTE entre início e destino). Assim o teste
+    // cobre qualquer número de elevadores e qualquer ordem de travessia.
+    const alcanca = (grade, de) => {
+      const nos = new Map();
+      for (const b of grade.lista) if (grade.andavel(b)) nos.set(chave(b.x, b.y, b.z), b);
+      const destinos = new Map();
+      for (const b of grade.lista) {
+        if (!b.elev) continue;
+        destinos.set(chave(b.elev.para.x, b.elev.para.y, b.elev.para.z),
+                     { x: b.elev.para.x, y: b.elev.para.y, z: b.elev.para.z });
       }
-      return false;
+      const dist = new Map([[chave(de.x, de.y, de.z), 0]]);
+      const fila = [{ b: de, d: 0 }];
+      while (fila.length) {
+        const { b: atual, d } = fila.shift();
+        const emp = alvo => {
+          const k = chave(alvo.x, alvo.y, alvo.z);
+          if (dist.has(k)) return;
+          dist.set(k, d + 1);
+          fila.push({ b: alvo, d: d + 1 });
+        };
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          for (const dy of [0, 1, -1]) {
+            const viz = nos.get(chave(atual.x + dx, atual.y + dy, atual.z + dz));
+            if (viz) emp(viz);
+          }
+        }
+        if (atual.elev) {
+          const p = destinos.get(chave(atual.elev.para.x, atual.elev.para.y, atual.elev.para.z));
+          if (p) emp({ ...p, elev: null });
+        }
+        const p2 = grade.lista.find(b => b.elev &&
+          chave(b.elev.inicio.x, b.elev.inicio.y, b.elev.inicio.z) === chave(atual.x, atual.y, atual.z));
+        if (p2) emp(p2);
+      }
+      return dist;
     };
+    const dist = alcanca(g, spawn);
     for (const m of moedas) {
-      const peloSpawn = alcancaAPe(spawn, m);
-      const pelaPonte = la ? alcancaAPe(la, m) : false;
-      if (!peloSpawn && !pelaPonte) sempreAlcancaveis = false;
+      if (!dist.has(chave(m.x, m.y, m.z))) sempreAlcancaveis = false;
       if (!g.andavel(m)) sempreEmBlocoValido = false;      // buraco/parede/teto
       const k = chave(m.x, m.y, m.z);
       blocosSorteados.set(k, (blocosSorteados.get(k) || 0) + 1);

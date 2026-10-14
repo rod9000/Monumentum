@@ -122,10 +122,90 @@ const irPara = (b) => {
   esperarParar();
 };
 
+/* ---------- atravessia de elevador (para completar fases com vão) ---------- */
+const elevadorParado = b => b.elev.t === 0 || b.elev.t === 1;
+
+/** Embarca no elevador, espera a viagem e desembarca do outro lado.
+ *  A rota é traçada até a BEIRADA de embarque (célula ao lado da plataforma):
+ *  quando o elevador está do outro lado do vão não há caminho a pé até ele, e
+ *  o teste espera o vaivém voltar — sempre rodando frames, nunca girando à
+ *  toa. Devolve true se atravessou. */
+const atravessarElevador = () => {
+  const g = grade();
+  let n = 0;
+  while (n++ < 2000) {
+    // 1) há um elevador parado com beirada alcançável a pé daqui?
+    //    (a beirada pode ser a célula em que já estamos — aí não há "rota",
+    //     mas também não precisa andar)
+    let escolhido = null;
+    for (const e of g.lista.filter(b => b.elev)) {
+      if (!elevadorParado(e)) continue;
+      const viz = g.vizinhos(e).filter(v => v === estado().blocoAtual || g.rota(estado().blocoAtual, v));
+      if (viz.length) { escolhido = { e, borda: viz[0] }; break; }
+    }
+    if (escolhido) {
+      const { e, borda } = escolhido;
+      irPara(borda);                                  // caminha até a beirada
+      if (estado().blocoAtual !== borda) return false;
+      const saida = { x: e.x, y: e.y, z: e.z };
+      irPara(e);                                      // embarca (só quando parado)
+      if (estado().blocoAtual !== e) { frame(); continue; }   // ainda em movimento
+      // 2) viaja até parar na OUTRA ponta
+      let m = 0;
+      while (m++ < 900) {
+        const andou = Math.abs(e.x - saida.x) + Math.abs(e.y - saida.y) + Math.abs(e.z - saida.z);
+        if (andou > 0.01 && elevadorParado(e)) break;
+        frame();
+      }
+      // 3) desembarca numa célula caminhável ao lado
+      const viz = g.vizinhos(e).find(v => v !== borda) || g.vizinhos(e)[0];
+      if (!viz) return false;
+      irPara(viz);
+      return estado().blocoAtual === viz;
+    }
+    frame();                       // sem beirada: o vaivém volta sozinho
+  }
+  return false;
+};
+
 /* ---------- 4. testes para cada fase ---------- */
 const niveis = mod.NIVEIS;
 console.log(`\nCarregadas ${niveis.length} fases: ${niveis.map(n => n.nome).join(' | ')}`);
-ok(mod.NIVEIS.length === 7, 'há 5 fases cadastradas');
+ok(mod.NIVEIS.length === 15, `há ${mod.NIVEIS.length} fases cadastradas`);
+
+// alcançabilidade a pé OU por elevadores (réplica de distanciasComElevador do
+// jogo: o elevador é uma PONTE entre sua posição e seu destino). Serve para
+// qualquer número de elevadores, em qualquer ordem.
+const alcancaveisDe = (de) => {
+  const g = grade();
+  const ch = (x, y, z) => `${x}|${y}|${z}`;
+  const nos = new Map();
+  for (const b of g.lista) if (g.andavel(b)) nos.set(ch(b.x, b.y, b.z), b);
+  const dist = new Map([[ch(de.x, de.y, de.z), 0]]);
+  const fila = [{ b: de, d: 0 }];
+  while (fila.length) {
+    const { b: atual, d } = fila.shift();
+    const emp = alvo => {
+      const k = ch(alvo.x, alvo.y, alvo.z);
+      if (dist.has(k)) return;
+      dist.set(k, d + 1);
+      fila.push({ b: alvo, d: d + 1 });
+    };
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const dy of [0, 1, -1]) {
+        const viz = nos.get(ch(atual.x + dx, atual.y + dy, atual.z + dz));
+        if (viz) emp(viz);
+      }
+    }
+    if (atual.elev) {
+      emp({ x: atual.elev.para.x, y: atual.elev.para.y, z: atual.elev.para.z, elev: null });
+    }
+    const p2 = g.lista.find(b => b.elev &&
+      ch(b.elev.inicio.x, b.elev.inicio.y, b.elev.inicio.z) === ch(atual.x, atual.y, atual.z));
+    if (p2) emp(p2);
+  }
+  return dist;
+};
 
 for (let i = 0; i < niveis.length; i++) {
   const nome = niveis[i].nome;
@@ -153,12 +233,11 @@ for (let i = 0; i < niveis.length; i++) {
       grade().rota(spawnAtual(), m).length >= (niveis[i].distanciaMoedas ?? 3));
     ok(distSpawn, 'as moedas respeitam a distância mínima do spawn');
   } else {
-    // com elevador a moeda pode ficar do outro lado do vão: a alcançabilidade
-    // é "a pé do spawn" OU "a pé do destino do elevador" (ver elevadores.mjs)
-    const elev = grade().lista.find(b => b.elev);
-    const la = elev ? elev.elev.para : spawnAtual();
-    ok(moedas.every(m => grade().rota(spawnAtual(), m) || grade().rota(la, m)),
-       'todas as moedas são alcançáveis (a pé ou depois do elevador)');
+    // com elevador a moeda pode ficar do "lado de lá" (ou depois de DOIS
+    // elevadores): a alcançabilidade é verificada pela ponte início<->destino
+    const dist = alcancaveisDe(spawnAtual());
+    ok(moedas.every(m => dist.has(`${m.x}|${m.y}|${m.z}`)),
+       'todas as moedas são alcançáveis (a pé ou de elevador)');
   }
   const espacadas = moedas.every((m, idx) => moedas.slice(idx + 1)
     .every(o => Math.abs(m.x - o.x) + Math.abs(m.y - o.y) + Math.abs(m.z - o.z) >= 2));
@@ -323,17 +402,26 @@ const concluirFaseAtual = () => {
   // caso basta simular a coleta chamando o fluxo interno via clique nas moedas
   // alcançáveis a pé — as demais são verificadas em teste/elevadores.mjs.
   const g = grade();
-  const elev = g.lista.find(b => b.elev);
-  for (const moeda of moedasAtuais().slice()) {
-    const alcancavel = grade().rota(spawnAtual(), moeda) || (elev && grade().rota(elev, moeda));
-    if (alcancavel) irPara(moeda);
+  const coletarAcessiveis = () => {
+    for (const moeda of moedasAtuais().slice()) {
+      const daqui = estado().blocoAtual;
+      if (g.rota(daqui, moeda) || g.rota(spawnAtual(), moeda)) irPara(moeda);
+    }
+  };
+  coletarAcessiveis();
+  // sobrou moeda do "lado de lá"? atravessa de elevador (quantas vezes
+  // precisar — a Fase 11 tem dois) e continua coletando
+  for (let t = 0; t < 8 && moedasAtuais().length; t++) {
+    if (!atravessarElevador()) break;
+    coletarAcessiveis();
   }
-  // se sobrou moeda do outro lado, força a conclusão coletando todas
+  // última tentativa: o clique roteia para a beirada de embarque
   for (const moeda of moedasAtuais().slice()) {
     if (moeda.tipo === 'moeda') { globalThis.__PROXIMO_BLOCO = moeda; canvasJogo.disparar('click', { clientX: 640, clientY: 360 }); esperarParar(); }
   }
 };
 
+// percorre TODAS as fases em sequência, uma a uma
 for (let i = 1; i < mod.NIVEIS.length; i++) {
   concluirFaseAtual();
   document.getElementById('btn-proxima').disparar('click');
@@ -341,26 +429,29 @@ for (let i = 1; i < mod.NIVEIS.length; i++) {
   const esperado = (i + 1) % mod.NIVEIS.length;
   ok(mod.indiceNivel === esperado, `Fase ${i + 1} concluída → foi para a Fase ${esperado + 1}`);
 }
-ok(mod.indiceNivel === 0, 'depois da última fase, volta para a Fase 1');
 
-// na última fase o texto muda
+// depois da última fase o texto e o botão mudam (e voltam para a Fase 1)
 mod.carregarNivel(mod.NIVEIS.length - 1);
 frames(3);
-for (const moeda of moedasAtuais().slice()) irPara(moeda);
+concluirFaseAtual();
+ok(document.getElementById('tela-conclusao').classList.contains('visivel'), `Fase ${mod.NIVEIS.length} (a última) concluída`);
 ok(document.getElementById('titulo-conclusao').textContent === 'Todas as Fases Concluídas!',
    `na última fase o título é "${document.getElementById('titulo-conclusao').textContent}"`);
 ok(document.getElementById('btn-proxima').textContent.includes('Voltar à Fase 1'),
    'na última fase o botão vira "Voltar à Fase 1"');
+document.getElementById('btn-proxima').disparar('click');
+frames(3);
+ok(mod.indiceNivel === 0, 'o botão da última fase volta para a Fase 1');
 
-// navegação livre pelo HUD
+// o HUD navega em ciclo: da primeira, ◀ volta para a última
 mod.carregarNivel(0);
 frames(3);
-document.getElementById('btn-fase-proxima').disparar('click');
-frames(3);
-ok(mod.indiceNivel === 1, 'botão ▶ do HUD vai para a fase seguinte');
 document.getElementById('btn-fase-anterior').disparar('click');
 frames(3);
-ok(mod.indiceNivel === 0, 'botão ◀ do HUD volta para a fase anterior');
+ok(mod.indiceNivel === mod.NIVEIS.length - 1, '◀ na Fase 1 volta para a última fase');
+document.getElementById('btn-fase-proxima').disparar('click');
+frames(3);
+ok(mod.indiceNivel === 0, '▶ na última fase volta para a Fase 1');
 
 console.log('\n' + (falhas === 0 ? '>>> SMOKE TEST OK' : `>>> ${falhas} FALHA(S):\n` + detalhes.map(d => '  - ' + d).join('\n')));
 process.exit(falhas === 0 ? 0 : 1);

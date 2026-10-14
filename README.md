@@ -59,7 +59,8 @@ const NIVEIS = [
 ```
 
 * `x` → leste(+)/oeste(-), `y` → altura, `z` → sul(+)/norte(−)
-* tipos: `'chao'`, `'parede'`, `'moeda'`, `'spawn'`
+* tipos: `'chao'`, `'parede'`, `'moeda'`, `'spawn'` e `'elevador'`
+  (plataforma que vaia entre a posição escrita e `elev.para` — veja "Elevadores")
 * a câmera se enquadra sozinha no tamanho do mapa — nada mais precisa mudar.
 
 ### Moedas: sorteio padronizado
@@ -100,6 +101,16 @@ blocos adjacentes, mude `permitirCliqueDistante` para `false` em `CONFIG`.
 | 5 — O Zigurate | **vertical** | pirâmide de 5 andares em espiral |
 | 6 — Dois Mundos | **elevador horizontal** | duas ilhas separadas por um vão de 3 células; tem de pegar o elevador e **esperar** a travessia |
 | 7 — O Poço | **elevador vertical** | o elevador sobe 3 blocos pela borda; embarque, **espere** a subida e desembarque no patamar |
+| 8 — O Labirinto | horizontal 9×9 | labirinto de verdade (gerado com recursive backtracker + atalhos); as moedas caem nos becos |
+| 9 — A Ponte Estreita | horizontal 17×3 | pinguela de **1 célula** de largura, com becos sem saída e uma elevação no meio |
+| 10 — A Espiral | **vertical** 7×7 | rampa em espiral (anéis concêntricos) subindo 5 andares; cada degrau fica em coluna diferente |
+| 11 — Dois Elevadores | 2 travessias | três ilhas e **dois** vaivéns em sequência — pega um, espera, atravessa, pega o outro |
+| 12 — O Elevador Secreto | elevador + labirinto | o elevador sobe até um labirinto suspenso; desembarcar é fácil, sair de lá com as moedas é o desafio |
+| 13 — Duas Rotas | escolha | dois caminhos para o mesmo terraço: o elevador (rápido, mas precisa **esperar**) ou a escada (longa, sempre Disponível) |
+| 14 — O Labirinto Vertical | labirinto em 2 andares | labirinto embaixo e labirinto em cima (3 blocos mais alto), ligados por uma escada no pátio |
+| 15 — O Grand Tour | **final** | usa tudo: labirinto, pinguela, elevador horizontal e escada final até o terraço das últimas moedas |
+
+Na 13 a graça é **ler o estado do elevador**: se ele acabou de sair, compensa mais subir a escada.
 
 ### Elevadores
 
@@ -122,9 +133,13 @@ Como a rota (busca em largura) não conhece o elevador, clicar num bloco do
 outro lado do vão manda o personagem até a beirada de embarque e avisa
 "🛗 Só dá de elevador".
 
+O sorteio de moedas **ignora o bloco do elevador** (a plataforma não pode virar
+moeda) e atravessa o vão pelas pontas — por isso moedas também aparecem do
+outro lado.
+
 O pipeline agora é `node gerar-fases.mjs` (valida + escreve
 `fases-geradas.json`) seguido de `node inserir-fases.mjs` (recompõe o `NIVEIS`
-no HTML, preservando a Fase 1). O JSON é a fonte da verdade das fases 2 a 7.
+no HTML, preservando a Fase 1). O JSON é a fonte da verdade das fases 2 a 15.
 
 ## Estrutura do código (tudo no mesmo arquivo)
 
@@ -145,20 +160,24 @@ suavidade do giro, margem de enquadramento, alerta nativo etc.).
 
 ## Testes (opcional)
 
-Requer Node.js. Duas suítes independentes:
+Requer Node.js. Quatro suítes independentes:
 
 ```bash
-node validar.js              # sintaxe do módulo + sanidade dos dados das 7 fases
+node validar.js              # sintaxe do módulo + sanidade dos dados das 15 fases
 node teste/randomizacao.mjs  # sorteio de moedas: 120+300 sorteios por fase
 node teste/elevadores.mjs    # embarque, travessia, desembarque e moedas do vão
 node teste/testar-jogo.mjs   # smoke test: bordas, sorteio, câmera, zoom, Q/E, progressão
 ```
 
 `validar.js` confere conectividade (todas as moedas alcançáveis a partir do
-spawn, nenhum bloco isolado, sem coordenadas duplicadas).
+spawn, nenhum bloco isolado, sem coordenadas duplicadas, apoio nas duas pontas
+de cada elevador).
 `testar-jogo.mjs` executa o módulo real do jogo com mocks de Three.js e do DOM
 e verifica inicialização, giro de 90° da câmera, movimento por clique e teclado,
-coleta de moedas, conclusão da fase, bloqueios e reinício.
+coleta de moedas, conclusão da fase, bloqueios, reinício e a progressão por
+**todas** as fases (inclusive a volta para a Fase 1 depois da última).
+Nas fases com vão, o teste atravessa de elevador de verdade (beirada → embarque
+→ viagem → desembarque), então a conclusão não depende de sorteio.
 
 ## Requisitos técnicos atendidos
 

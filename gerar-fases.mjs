@@ -1,13 +1,13 @@
 /* ============================================================================
-   GERADOR DE FASES — 2 horizontais + 2 verticais + 2 com elevador
+   GERADOR DE FASES — 14 fases: horizontais, verticais, labirintos e elevadores
    ----------------------------------------------------------------------------
-   Constrói os arrays de blocos, VALIDA cada fase e imprime o JavaScript pronto
-   para colar em NIVEIS.
+   Constrói os arrays de blocos, VALIDA cada fase e escreve o JSON que o
+   insersor usa para recompor o NIVEIS no HTML.
 
    Validação inclui elevadores: a plataforma é tratada como uma PONTE entre sua
    posição inicial e seu destino (o jogador embarca, espera e desembarca).
 
-   Uso:  node gerar-fases.mjs
+   Uso:  node gerar-fases.mjs && node inserir-fases.mjs
    ============================================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -176,6 +176,76 @@ function furar(grade, maxLacunas, rnd) {
 }
 
 /* ============================================================================
+   HELPERS DE LAYOUT
+   ============================================================================ */
+
+/** Labirinto perfeito (recursive backtracker) numa grade `lado x lado`.
+ *  As salas ficam nas coordenadas ímpares; a borda é sempre parede.
+ *  Devolve um Set com as chaves "x,z" das células que são PAREDE. */
+function gerarLabirinto(lado, rnd, chanceAtalho = 0.2) {
+  const salas = (lado - 1) / 2;
+  const k = (x, z) => `${x},${z}`;
+  const paredes = new Set();
+  for (let x = 0; x < lado; x++) for (let z = 0; z < lado; z++) paredes.add(k(x, z));
+  const visitadas = new Set([k(0, 0)]);
+  paredes.delete(k(1, 1));
+  const pilha = [[0, 0]];
+  while (pilha.length) {
+    const [cx, cz] = pilha[pilha.length - 1];
+    const opcoes = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+      .map(([dx, dz]) => [cx + dx, cz + dz])
+      .filter(([nx, nz]) => nx >= 0 && nz >= 0 && nx < salas && nz < salas && !visitadas.has(k(nx, nz)));
+    if (!opcoes.length) { pilha.pop(); continue; }
+    const [nx, nz] = opcoes[Math.floor(rnd() * opcoes.length)];
+    visitadas.add(k(nx, nz));
+    paredes.delete(k(nx * 2 + 1, nz * 2 + 1));          // sala nova
+    paredes.delete(k(cx + nx + 1, cz + nz + 1));        // parede entre as duas salas
+    pilha.push([nx, nz]);
+  }
+  // atalhos: abre paredes internas para criar ciclos (labirinto com rotas alternativas)
+  const internas = [...paredes].filter(s => {
+    const [x, z] = s.split(',').map(Number);
+    return x > 0 && z > 0 && x < lado - 1 && z < lado - 1;
+  });
+  embaralhar(internas, rnd);
+  for (const s of internas) if (rnd() < chanceAtalho) paredes.delete(s);
+  return paredes;
+}
+
+/** Células de uma espiral quadrada (anéis concêntricos, de fora para dentro),
+ *  em ordem de visita: cada célula é adjacente à seguinte. Serve de rota para
+ *  rampas/escadas em espiral. */
+function gerarEspiral(lado) {
+  const cel = [];
+  let x0 = 0, z0 = 0, x1 = lado - 1, z1 = lado - 1;
+  while (x0 <= x1 && z0 <= z1) {
+    for (let x = x0; x <= x1; x++) cel.push([x, z0]);
+    for (let z = z0 + 1; z <= z1; z++) cel.push([x1, z]);
+    for (let x = x1 - 1; x >= x0; x--) cel.push([x, z1]);
+    for (let z = z1 - 1; z > z0; z--) cel.push([x0, z]);
+    x0++; z0++; x1--; z1--;
+  }
+  return cel;
+}
+
+/** Escada reta: cada degrau sobe 1 em Y e anda 1 em Z (x fixo), sempre em
+ *  coluna (x,z) distinta — um degrau NUNCA pode ficar acima de outro, porque
+ *  a célula de cima tamparia a de baixo e ela deixaria de ser caminhável.
+ *  Os vãos abaixo de cada degrau são preenchidos com 'parede' (e 'chao' no
+ *  piso) até encostar em algo que já exista. */
+function escadaReta(x0, z0, y0, passos, dz, existe) {
+  const blocos = [];
+  for (let i = 0; i < passos; i++) {
+    const x = x0, y = y0 + i, z = z0 + dz * i;
+    for (let k = y - 1; k >= 0 && !existe(x, k, z); k--) {
+      blocos.push({ x, y: k, z, tipo: k === 0 ? 'chao' : 'parede' });
+    }
+    if (!existe(x, y, z)) blocos.push({ x, y, z, tipo: 'chao' });
+  }
+  return blocos;
+}
+
+/* ============================================================================
    FASE 2 — HORIZONTAL: "O Salão" (labirinto de paredes em 6x6)
    Paredes elevadas (y=1) sobre um piso, como na Fase 1.
    ============================================================================ */
@@ -292,6 +362,226 @@ for (const [x, z] of [[0, 1], [1, 1], [2, 1]]) {
 f7.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
 
 /* ============================================================================
+   FASE 8 — HORIZONTAL: "O LABIRINTO" (9x9 de paredes marrons em y=1)
+   ----------------------------------------------------------------------------
+   Labirinto de verdade (recursive backtracker com alguns atalhos), gerado com
+   seed fixa. As moedas caem nos becos — o jogador precisa explorar.
+   ============================================================================ */
+const LADO_F8 = 9;
+const paredesF8 = gerarLabirinto(LADO_F8, rndSeed(80808), 0.15);
+const f8 = [];
+for (let z = 0; z < LADO_F8; z++) {
+  for (let x = 0; x < LADO_F8; x++) {
+    const parede = paredesF8.has(`${x},${z}`);
+    f8.push({ x, y: 0, z, tipo: (x === 1 && z === 1) ? 'spawn' : 'chao' });
+    if (parede) f8.push({ x, y: 1, z, tipo: 'parede' });
+  }
+}
+f8.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
+   FASE 9 — HORIZONTAL: "A PONTE ESTREITA" (ponte de 1 célula sobre o vazio)
+   ----------------------------------------------------------------------------
+   Duas ilhas ligadas por uma pinguela de UMA célula de largura, com becos sem
+   saída nas laterais e uma elevação no meio (sobe 1, desce 1). Um passo em
+   falso leva a um beco — e a moeda costuma ficar lá.
+   ============================================================================ */
+const f9 = [];
+for (let z = 0; z < 3; z++) for (let x = 0; x < 4; x++) {           // ilha A
+  f9.push({ x, y: 0, z, tipo: x === 0 && z === 1 ? 'spawn' : 'chao' });
+}
+const PONTE_F9 = [                                                 // 1 célula de largura
+  [4, 0, 1], [5, 0, 1], [6, 0, 1], [7, 0, 1], [8, 0, 1],             // sobe...
+  [9, 1, 1], [10, 1, 1], [11, 1, 1], [12, 1, 1],                     // ...e desce
+  [13, 0, 1]
+];
+for (const [x, y, z] of PONTE_F9) f9.push({ x, y, z, tipo: 'chao' });
+for (const [x, y, z] of [[6, 0, 0], [6, 0, 2], [10, 1, 0], [10, 1, 2]]) {
+  f9.push({ x, y, z, tipo: 'chao' });                               // becos sem saída
+}
+for (let z = 0; z < 3; z++) for (let x = 14; x <= 16; x++) {        // ilha B
+  f9.push({ x, y: 0, z, tipo: 'chao' });
+}
+f9.push({ x: 15, y: 1, z: 0, tipo: 'chao' }, { x: 16, y: 1, z: 0, tipo: 'chao' });  // terraço
+f9.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
+   FASE 10 — VERTICAL: "A ESPIRAL" (rampa em espiral subindo 5 andares)
+   ----------------------------------------------------------------------------
+   A rota é uma espiral quadrada (anéis concêntricos); cada bloco da rota é
+   um degrau e tudo abaixo dele é maciço de sustentação. Sobe 1 a cada ~11
+   passos — o jogador contorna o diorama inteiro a cada andar.
+   ============================================================================ */
+const LADO_F10 = 7;
+const rotaF10 = gerarEspiral(LADO_F10);
+const f10 = [];
+for (const [x, z] of rotaF10) {
+  const i = rotaF10.findIndex(([rx, rz]) => rx === x && rz === z);
+  const y = Math.min(4, Math.floor(i / 11));
+  f10.push({ x, y, z, tipo: (x === 0 && z === 0) ? 'spawn' : 'chao' });
+  for (let k = y - 1; k >= 0; k--) f10.push({ x, y: k, z, tipo: 'parede' });
+}
+f10.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
+   FASE 11 — ELEVADORES: "DOIS ELEVADORES" (duas travessias em sequência)
+   ----------------------------------------------------------------------------
+   Três ilhas e DOIS vãos. O jogador pega o elevador, espera, atravessa, pega
+   o outro, espera de novo. A ponte a pé não existe em nenhum dos vãos.
+   ============================================================================ */
+const f11 = [];
+for (let z = 0; z < 4; z++) for (let x = 0; x <= 3; x++) {          // ilha A
+  f11.push({ x, y: 0, z, tipo: x === 0 && z === 0 ? 'spawn' : 'chao' });
+}
+for (let z = 0; z < 4; z++) for (let x = 7; x <= 10; x++) {         // ilha B (meio)
+  f11.push({ x, y: 0, z, tipo: 'chao' });
+}
+for (let z = 0; z < 4; z++) for (let x = 14; x <= 16; x++) {        // ilha C (destino)
+  f11.push({ x, y: 0, z, tipo: 'chao' });
+}
+f11.push({ x: 15, y: 1, z: 0, tipo: 'chao' }, { x: 16, y: 1, z: 0, tipo: 'chao' });
+f11.push({ x: 4, y: 0, z: 1, tipo: 'elevador', elev: { eixo: 'x', para: { x: 6, y: 0, z: 1 } } });
+f11.push({ x: 11, y: 0, z: 1, tipo: 'elevador', elev: { eixo: 'x', para: { x: 13, y: 0, z: 1 } } });
+f11.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
+   FASE 12 — ELEVADOR + LABIRINTO: "O ELEVADOR SECRETO"
+   ----------------------------------------------------------------------------
+   O elevador sobe até um labirinto suspenso. Desembarcar é fácil; sair de
+   dentro do labirinto (com as moedas nos becos) é que é o desafio.
+   A coluna z=1 do labirinto é aberta à força para servir de entrada.
+   ============================================================================ */
+const LADO_F12 = 5;
+const paredesF12 = gerarLabirinto(LADO_F12, rndSeed(121212), 0.25);
+for (let x = 0; x < LADO_F12 - 1; x++) paredesF12.delete(`${x},0`);  // corredor de entrada
+const f12 = [];
+{
+  const tem = (x, y, z) => f12.some(b => b.x === x && b.y === y && b.z === z);
+  for (let z = 0; z <= LADO_F12; z++) {                             // base (z=0 é o pátio)
+    for (let x = 0; x < LADO_F12; x++) {
+      if (!tem(x, 0, z)) f12.push({ x, y: 0, z, tipo: (x === 1 && z === 0) ? 'spawn' : 'chao' });
+    }
+  }
+  f12.push({ x: 0, y: 1, z: 0, tipo: 'elevador', elev: { eixo: 'y', para: { x: 0, y: 3, z: 0 } } });
+  for (let zp = 0; zp < LADO_F12; zp++) {                           // labirinto em y=3
+    for (let x = 0; x < LADO_F12; x++) {
+      const z = zp + 1;                                             // deslocado 1 em z (como a Fase 7)
+      f12.push({ x, y: 1, z, tipo: 'parede' }, { x, y: 2, z, tipo: 'parede' });  // maciço
+      f12.push({ x, y: 3, z, tipo: 'chao' });
+      if (paredesF12.has(`${x},${zp}`)) f12.push({ x, y: 4, z, tipo: 'parede' });
+    }
+  }
+}
+
+/* ============================================================================
+   FASE 13 — ESCOLHA: "DUAS ROTAS" (elevador curto x escada longa)
+   ----------------------------------------------------------------------------
+   Dois caminhos para o mesmo terraço: o elevador (sobe 3 de uma vez, mas
+   vaia e é preciso ESPERAR) e a escada pela borda leste (longa, porém sempre
+   disponível). O jogador escolhe — e aprende a ler o estado do elevador.
+   ============================================================================ */
+const f13 = [];
+{
+  for (let z = 0; z < 8; z++) for (let x = 0; x < 8; x++) {          // base 8x8
+    f13.push({ x, y: 0, z, tipo: (x === 1 && z === 0) ? 'spawn' : 'chao' });
+  }
+  const tem = (x, y, z) => f13.some(b => b.x === x && b.y === y && b.z === z);
+  // elevador: sobe 3 pela borda oeste, coluna (0,0) livre até o destino
+  f13.push({ x: 0, y: 1, z: 0, tipo: 'elevador', elev: { eixo: 'y', para: { x: 0, y: 4, z: 0 } } });
+  // terraço em y=4: faixa z=5 (todo x) + coluna x=0 (z=1..4) — maciço abaixo
+  const terraco = [];
+  for (let x = 0; x < 8; x++) terraco.push([x, 5]);
+  for (let z = 1; z <= 4; z++) terraco.push([0, z]);
+  for (const [x, z] of terraco) {
+    f13.push({ x, y: 4, z, tipo: 'chao' });
+    for (let y = 1; y <= 3; y++) if (!tem(x, y, z)) f13.push({ x, y, z, tipo: 'parede' });
+  }
+  // passagem de serviço: o maciço tem um vão em (3,1,5) e (3,2,5) — por ele
+  // se atravessa a base de z<5 para z>5 sem precisar subir no elevador
+  f13.splice(0, f13.length, ...f13.filter(b => !(b.x === 3 && b.z === 5 && (b.y === 1 || b.y === 2))));
+  // rota longa: escada pela borda leste (x=7), subindo 1 por passo em z
+  f13.push(...escadaReta(7, 2, 1, 4, 1, tem));
+}
+f13.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
+   FASE 14 — VERTICAL: "O LABIRINTO VERTICAL" (dois labirintos + escada)
+   ----------------------------------------------------------------------------
+   Labirinto embaixo (y=0, paredes em y=1) e labirinto em cima (y=3, paredes
+   em y=4), ligados por uma escada de 3 degraus no pátio. Achar a escada é
+   metade do desafio.
+   ============================================================================ */
+const f14 = [];
+{
+  const LADO_A = 5;
+  const paredesA = gerarLabirinto(LADO_A, rndSeed(141414), 0.2);
+  for (const x of [1, 2, 3]) paredesA.delete(`${x},${LADO_A - 1}`);  // saída para o pátio
+  const tem = (x, y, z) => f14.some(b => b.x === x && b.y === y && b.z === z);
+  const push = b => { if (!tem(b.x, b.y, b.z)) f14.push(b); };
+  for (let z = 0; z < LADO_A; z++) for (let x = 0; x < LADO_A; x++) {
+    push({ x, y: 0, z, tipo: (x === 1 && z === 1) ? 'spawn' : 'chao' });
+    if (paredesA.has(`${x},${z}`)) push({ x, y: 1, z, tipo: 'parede' });
+  }
+  for (let x = 0; x < LADO_A; x++) push({ x, y: 0, z: 5, tipo: 'chao' });   // pátio
+  // escada de 3 degraus subindo em z (x=0), do pátio até y=3
+  for (const b of escadaReta(0, 5, 1, 3, 1, tem)) push(b);
+  // labirinto de cima em y=3 (deslocado 3 em z), com entrada forçada em z=8
+  const LADO_B = 5;
+  const paredesB = gerarLabirinto(LADO_B, rndSeed(141415), 0.2);
+  for (const x of [0, 1, 2]) paredesB.delete(`${x},0`);
+  for (let zp = 0; zp < LADO_B; zp++) for (let x = 0; x < LADO_B; x++) {
+    const z = zp + 8;
+    push({ x, y: 3, z, tipo: 'chao' });
+    if (paredesB.has(`${x},${zp}`)) push({ x, y: 4, z, tipo: 'parede' });
+    // maciço de sustentação até o chão
+    for (let y = 2; y >= 0; y--) push({ x, y, z, tipo: y === 0 ? 'chao' : 'parede' });
+  }
+}
+
+/* ============================================================================
+   FASE 15 — FINAL: "O GRAND TOUR" (labirinto, ponte, elevador e escada)
+   ----------------------------------------------------------------------------
+   Uma única fase que usa tudo: entra num labirinto, atravessa uma pinguela
+   com becos, pega um elevador horizontal para a ilha final e sobe a escada
+   até o terraço das últimas moedas.
+   ============================================================================ */
+const f15 = [];
+{
+  const LADO = 5;
+  const paredes = gerarLabirinto(LADO, rndSeed(151515), 0.15);
+  for (const x of [1, 2, 3]) paredes.delete(`${x},${LADO - 1}`);   // saída do labirinto
+  const tem = (x, y, z) => f15.some(b => b.x === x && b.y === y && b.z === z);
+  const push = b => { if (!tem(b.x, b.y, b.z)) f15.push(b); };
+
+  // --- setor 1: labirinto de entrada (x 0..4, z 0..4) ---
+  for (let z = 0; z < LADO; z++) for (let x = 0; x < LADO; x++) {
+    push({ x, y: 0, z, tipo: (x === 1 && z === 1) ? 'spawn' : 'chao' });
+    if (paredes.has(`${x},${z}`)) push({ x, y: 1, z, tipo: 'parede' });
+  }
+  // --- setor 2: ponte de transição (z=5) ---
+  for (let x = 0; x < LADO; x++) push({ x, y: 0, z: 5, tipo: 'chao' });
+
+  // --- setor 3: pinguela estreita com becos (z=6..8), com uma elevação ---
+  for (const [x, y, z] of [[2, 0, 6], [2, 0, 7], [2, 0, 8]]) push({ x, y, z, tipo: 'chao' });
+  for (const [x, y, z] of [[2, 1, 6], [2, 1, 7], [2, 1, 8]]) push({ x, y, z, tipo: 'chao' });
+  for (const [x, z] of [[1, 6], [3, 6], [1, 7], [3, 7]]) push({ x, y: 0, z, tipo: 'chao' });
+
+  // --- setor 4: ilha A + vão + ilha B (z=9..11) ---
+  for (let z = 9; z <= 11; z++) for (let x = 0; x <= 3; x++) push({ x, y: 0, z, tipo: 'chao' });
+  push({ x: 4, y: 0, z: 10, tipo: 'elevador', elev: { eixo: 'x', para: { x: 6, y: 0, z: 10 } } });
+  for (let z = 9; z <= 11; z++) for (let x = 7; x <= 9; x++) push({ x, y: 0, z, tipo: 'chao' });
+  for (let x = 7; x <= 9; x++) push({ x, y: 0, z: 12, tipo: 'chao' });   // piso da escada
+
+  // --- setor 5: escada final e terraço do topo (y=3) ---
+  // a escada sobe por x=9 (longe do apoio (7,0,10) do elevador, que precisa
+  // continuar livre para o desembarque)
+  for (const b of escadaReta(9, 12, 1, 3, -1, tem)) push(b);
+  push({ x: 8, y: 3, z: 10, tipo: 'chao' });                        // beirada do topo
+  for (let y = 2; y >= 1; y--) push({ x: 8, y, z: 10, tipo: 'parede' });
+}
+f15.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
+
+/* ============================================================================
    VALIDAÇÃO E IMPRESSÃO
    ============================================================================ */
 const fases = [
@@ -300,7 +590,15 @@ const fases = [
   { nome: 'Fase 4 — A Escada', bloco: f4, moedas: 3, distanciaMoedas: 3 },
   { nome: 'Fase 5 — O Zigurate', bloco: f5, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 6 — Dois Mundos', bloco: f6, moedas: 3, distanciaMoedas: 3 },
-  { nome: 'Fase 7 — O Poço', bloco: f7, moedas: 3, distanciaMoedas: 2 }
+  { nome: 'Fase 7 — O Poço', bloco: f7, moedas: 3, distanciaMoedas: 2 },
+  { nome: 'Fase 8 — O Labirinto', bloco: f8, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 9 — A Ponte Estreita', bloco: f9, moedas: 3, distanciaMoedas: 2 },
+  { nome: 'Fase 10 — A Espiral', bloco: f10, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 11 — Dois Elevadores', bloco: f11, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 12 — O Elevador Secreto', bloco: f12, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 13 — Duas Rotas', bloco: f13, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 14 — O Labirinto Vertical', bloco: f14, moedas: 4, distanciaMoedas: 2 },
+  { nome: 'Fase 15 — O Grand Tour', bloco: f15, moedas: 5, distanciaMoedas: 2 }
 ];
 
 let falhas = 0;
