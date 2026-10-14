@@ -24,10 +24,10 @@ export function atualizarTextoFase(nome, indice, faixa = null) {
   document.getElementById('nome-fase').textContent = `${nome}  ·  ${indice + 1}/∞${dificuldade}`;
 }
 
-/** Contadores do topo: moedas desta fase, total salvo (+ o que está em jogo) e passos. */
-export function atualizarContadores({ coletadas, total, passos, par, totalSalvo, emJogo }) {
+/** Contadores do topo: moedas desta fase, saldo salvo (+ o que está em jogo) e passos. */
+export function atualizarContadores({ coletadas, total, passos, par, saldo, emJogo }) {
   document.getElementById('contador-moedas').textContent = `🪙 ${coletadas}/${total}`;
-  document.getElementById('total-moedas').textContent = `Total 🪙 ${totalSalvo + emJogo}`;
+  document.getElementById('total-moedas').textContent = `Saldo 🪙 ${saldo + emJogo}`;
   document.getElementById('passos').textContent = par === null || par === undefined
     ? `👣 ${passos}`
     : `👣 ${passos} · meta ${par}`;
