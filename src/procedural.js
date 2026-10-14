@@ -267,7 +267,7 @@ function salaAberta(n) {
   const blocos = [];
   for (let x = 0; x < 5; x++) for (let z = 0; z < 5; z++) blocos.push({ x, y: 0, z, tipo: 'chao' });
   blocos[0].tipo = 'spawn';
-  return { nome: `Fase ${n + 1}`, moedas: 2, distanciaMoedas: 2, seed: n + 1, origem: 'sala', blocos, pontes: [] };
+  return { nome: `Fase ${n + 1}`, moedas: 2, distanciaMoedas: 2, origem: 'sala', blocos, pontes: [] };
 }
 
 /** Gera a fase n (0-based). Mesmo n, mesmo resultado. */
@@ -284,7 +284,6 @@ export function gerarFase(n) {
       nome: `Fase ${n + 1}`,
       moedas: p.moedas,
       distanciaMoedas: 2,
-      seed: ((n + 1) * 1009 + t) >>> 0,        // semente do sorteio de moedas
       origem: familia,
       blocos: mapa.blocos,
       pontes: mapa.pontes

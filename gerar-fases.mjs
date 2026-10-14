@@ -486,7 +486,7 @@ const R21 = faseRelevo(20, 2100);
 
 const fases = [
   { nome: 'Fase 2 — O Salão', bloco: f2, moedas: 3, distanciaMoedas: 3 },
-  { nome: 'Fase 3 — A Travessia', bloco: f3, moedas: 4, distanciaMoedas: 2, seed: 303 },
+  { nome: 'Fase 3 — A Travessia', bloco: f3, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 4 — A Escada', bloco: f4, moedas: 3, distanciaMoedas: 3 },
   { nome: 'Fase 5 — O Zigurate', bloco: f5, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 6 — Dois Mundos', bloco: f6, moedas: 3, distanciaMoedas: 3 },
@@ -499,12 +499,12 @@ const fases = [
   { nome: 'Fase 13 — Duas Rotas', bloco: f13, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 14 — O Labirinto Vertical', bloco: f14, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 15 — O Grand Tour', bloco: f15, moedas: 5, distanciaMoedas: 2 },
-  { nome: 'Fase 16 — Ilusão de Ótica', bloco: f16, moedas: 3, distanciaMoedas: 2, seed: 1601, pontes: P16 },
-  { nome: 'Fase 17 — Dois Ângulos', bloco: f17, moedas: 4, distanciaMoedas: 3, seed: 1701, pontes: P17 },
-  { nome: 'Fase 18 — Ponte e Elevador', bloco: f18, moedas: 3, distanciaMoedas: 3, seed: 1801, pontes: P18 },
-  { nome: 'Fase 19 — Relevo Ondulado', bloco: R19.blocos, moedas: R19.moedas, distanciaMoedas: 2, seed: R19.seed },
-  { nome: 'Fase 20 — Platôs', bloco: R20.blocos, moedas: R20.moedas, distanciaMoedas: 2, seed: R20.seed },
-  { nome: 'Fase 21 — Vales', bloco: R21.blocos, moedas: R21.moedas, distanciaMoedas: 2, seed: R21.seed }
+  { nome: 'Fase 16 — Ilusão de Ótica', bloco: f16, moedas: 3, distanciaMoedas: 2, pontes: P16 },
+  { nome: 'Fase 17 — Dois Ângulos', bloco: f17, moedas: 4, distanciaMoedas: 3, pontes: P17 },
+  { nome: 'Fase 18 — Ponte e Elevador', bloco: f18, moedas: 3, distanciaMoedas: 3, pontes: P18 },
+  { nome: 'Fase 19 — Relevo Ondulado', bloco: R19.blocos, moedas: R19.moedas, distanciaMoedas: 2 },
+  { nome: 'Fase 20 — Platôs', bloco: R20.blocos, moedas: R20.moedas, distanciaMoedas: 2 },
+  { nome: 'Fase 21 — Vales', bloco: R21.blocos, moedas: R21.moedas, distanciaMoedas: 2 }
 ];
 
 let falhas = 0;

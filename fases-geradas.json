@@ -310,7 +310,6 @@
     "nome": "Fase 3 — A Travessia",
     "moedas": 4,
     "distanciaMoedas": 2,
-    "seed": 303,
     "blocos": [
       {
         "x": 0,
@@ -6980,7 +6979,6 @@
     "nome": "Fase 16 — Ilusão de Ótica",
     "moedas": 3,
     "distanciaMoedas": 2,
-    "seed": 1601,
     "pontes": [
       {
         "a": {
@@ -7111,7 +7109,6 @@
     "nome": "Fase 17 — Dois Ângulos",
     "moedas": 4,
     "distanciaMoedas": 3,
-    "seed": 1701,
     "pontes": [
       {
         "a": {
@@ -7309,7 +7306,6 @@
     "nome": "Fase 18 — Ponte e Elevador",
     "moedas": 3,
     "distanciaMoedas": 3,
-    "seed": 1801,
     "pontes": [
       {
         "a": {
@@ -7508,7 +7504,6 @@
     "nome": "Fase 19 — Relevo Ondulado",
     "moedas": 3,
     "distanciaMoedas": 2,
-    "seed": 1900,
     "blocos": [
       {
         "x": 0,
@@ -8290,7 +8285,6 @@
     "nome": "Fase 20 — Platôs",
     "moedas": 4,
     "distanciaMoedas": 2,
-    "seed": 2000,
     "blocos": [
       {
         "x": 0,
@@ -9114,7 +9108,6 @@
     "nome": "Fase 21 — Vales",
     "moedas": 3,
     "distanciaMoedas": 2,
-    "seed": 2105,
     "blocos": [
       {
         "x": 0,

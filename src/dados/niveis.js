@@ -130,7 +130,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 3 — A Travessia',
-    moedas: 4, distanciaMoedas: 2, seed: 303,
+    moedas: 4, distanciaMoedas: 2,
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 0, z: 0, tipo: 'spawn' },
@@ -1535,7 +1535,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 16 — Ilusão de Ótica',
-    moedas: 3, distanciaMoedas: 2, seed: 1601, pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }],
+    moedas: 3, distanciaMoedas: 2, pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }],
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 0, z: 0, tipo: 'spawn' },
@@ -1578,7 +1578,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 17 — Dois Ângulos',
-    moedas: 4, distanciaMoedas: 3, seed: 1701, pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }, { a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 3 }],
+    moedas: 4, distanciaMoedas: 3, pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }, { a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 3 }],
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 0, z: 0, tipo: 'spawn' },
@@ -1639,7 +1639,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 18 — Ponte e Elevador',
-    moedas: 3, distanciaMoedas: 3, seed: 1801, pontes: [{ a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 2 }],
+    moedas: 3, distanciaMoedas: 3, pontes: [{ a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 2 }],
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 0, z: 0, tipo: 'spawn' },
@@ -1703,7 +1703,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 19 — Relevo Ondulado',
-    moedas: 3, distanciaMoedas: 2, seed: 1900,
+    moedas: 3, distanciaMoedas: 2,
     blocos: [
       /* ---- z = 0 ---- */
       { x: 0, y: 1, z: 0, tipo: 'chao' },
@@ -1923,7 +1923,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 20 — Platôs',
-    moedas: 4, distanciaMoedas: 2, seed: 2000,
+    moedas: 4, distanciaMoedas: 2,
     blocos: [
       /* ---- z = 1 ---- */
       { x: 0, y: 1, z: 1, tipo: 'chao' },
@@ -2152,7 +2152,7 @@ export const NIVEIS = [
 
   {
     nome: 'Fase 21 — Vales',
-    moedas: 3, distanciaMoedas: 2, seed: 2105,
+    moedas: 3, distanciaMoedas: 2,
     blocos: [
       /* ---- z = 2 ---- */
       { x: 0, y: 0, z: 2, tipo: 'chao' },

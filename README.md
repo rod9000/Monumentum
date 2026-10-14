@@ -47,9 +47,8 @@ O progresso é salvo no navegador (`localStorage`) — ao reabrir, você continu
   - ⭐⭐⭐ com menos de 1,25 × meta (com meta 20: até 24 passos);
   - ⭐⭐ de 1,25 × meta até 1,5 × meta (com meta 20: de 25 a 30 passos);
   - ⭐ acima de 1,5 × meta (com meta 20: mais de 30 passos).
-  Como as moedas são sorteadas a cada tentativa, a meta muda junto com elas (as fases
-  com semente fixa têm sempre a mesma meta). Na conclusão aparecem passos, meta, recorde
-  da fase e tempo.
+  As moedas são sorteadas a cada tentativa (em todas as fases), então a meta também muda
+  de tentativa para tentativa. Na conclusão aparecem passos, meta, recorde da fase e tempo.
 * **Menu ☰:** lista as fases abertas, com as concluídas marcadas e as estrelas. As
   travadas aparecem desabilitadas (abrem ao concluir a anterior).
 * **Som 🔊/🔇:** efeitos sintetizados (passo, moeda, pulo, queda, giro, fase). O som
