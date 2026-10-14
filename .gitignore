@@ -3,3 +3,4 @@ teste/jogo-teste.mjs
 node_modules/
 test-results/
 playwright-report/
+/.claude/worktrees/skins-bola
