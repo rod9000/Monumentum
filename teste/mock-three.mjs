@@ -84,7 +84,8 @@ class DirectionalLight extends Light {
   }
 }
 
-class Color { constructor(c) { this.c = c; } }
+class Color { constructor(c) { this.c = c; } copy(o) { this.c = o.c; return this; } }
+class RingGeometry { constructor(ri, ro, seg) { this.tipo = 'anel'; this.parametros = [ri, ro, seg]; } }
 
 class Raycaster {
   constructor() { this.ray = {}; }
@@ -123,5 +124,5 @@ export {
   Mesh, Group, Camera, OrthographicCamera, PerspectiveCamera, Scene,
   Light, AmbientLight, DirectionalLight, Color, Raycaster, WebGLRenderer,
   PCFSoftShadowMap,
-  EdgesGeometry, LineSegments, LineBasicMaterial
+  EdgesGeometry, LineSegments, LineBasicMaterial, RingGeometry
 };

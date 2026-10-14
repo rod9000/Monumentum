@@ -7,6 +7,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { carregarJogo } from './carregar-jogo.mjs';
+import { alcancaveis } from '../src/grade.js';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.join(aqui, '..');
@@ -28,15 +30,7 @@ let raf = null;
 globalThis.requestAnimationFrame = f => { raf = f; };
 globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1, addEventListener() {} };
 
-const html = fs.readFileSync(path.join(raiz, 'diorama-puzzle.html'), 'utf8');
-let codigo = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1]
-  .replace(/import \* as THREE from 'three';/, "import * as THREE from './mock-three.mjs';")
-  .replace('window.__DIORAMA_PRONTO__ = true;',
-    `window.__DIORAMA_PRONTO__ = true;
-     export { grade, estado, NIVEIS, carregarNivel, sortearMoedas, Grade, iniciarElevador, CONFIG };`);
-fs.writeFileSync(path.join(aqui, 'jogo-teste.mjs'), codigo);
-
-const mod = await import('./jogo-teste.mjs');
+const mod = await carregarJogo(['grade', 'estado', 'NIVEIS', 'carregarNivel', 'sortearMoedas', 'Grade', 'iniciarElevador', 'CONFIG']);
 let agora = performance.now();
 const frames = n => { for (let i = 0; i < n; i++) { agora += 16; const f = raf; raf = null; f(agora); } };
 
@@ -61,7 +55,8 @@ for (let i = 0; i < mod.NIVEIS.length; i++) {
 
   for (let n = 0; n < SORTEIOS; n++) {
     // Grade nova a partir dos dados da fase (mesma cópia que o jogo faz)
-    const g = new mod.Grade(nivel.blocos.map(b => ({ ...b })));
+    const g = new mod.Grade(nivel.blocos.map(b => ({ ...b })), nivel.pontes);
+    g.pontesLivres = true;                 // alcance: pontes contam como arestas
     // os elevadores precisam do estado inicial (t/para/inicio), como no jogo
     for (const b of g.lista) {
       if (b.elev) {
@@ -75,45 +70,8 @@ for (let i = 0; i < mod.NIVEIS.length; i++) {
     if (moedas.length !== quantidade) sempreQuantidadeCerta = false;
 
     const spawn = g.lista.find(b => b.tipo === 'spawn');
-    // alcançabilidade: réplica fiel de `distanciasComElevador` do jogo
-    // (BFS a pé + elevadores como PONTE entre início e destino). Assim o teste
-    // cobre qualquer número de elevadores e qualquer ordem de travessia.
-    const alcanca = (grade, de) => {
-      const nos = new Map();
-      for (const b of grade.lista) if (grade.andavel(b)) nos.set(chave(b.x, b.y, b.z), b);
-      const destinos = new Map();
-      for (const b of grade.lista) {
-        if (!b.elev) continue;
-        destinos.set(chave(b.elev.para.x, b.elev.para.y, b.elev.para.z),
-                     { x: b.elev.para.x, y: b.elev.para.y, z: b.elev.para.z });
-      }
-      const dist = new Map([[chave(de.x, de.y, de.z), 0]]);
-      const fila = [{ b: de, d: 0 }];
-      while (fila.length) {
-        const { b: atual, d } = fila.shift();
-        const emp = alvo => {
-          const k = chave(alvo.x, alvo.y, alvo.z);
-          if (dist.has(k)) return;
-          dist.set(k, d + 1);
-          fila.push({ b: alvo, d: d + 1 });
-        };
-        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          for (const dy of [0, 1, -1]) {
-            const viz = nos.get(chave(atual.x + dx, atual.y + dy, atual.z + dz));
-            if (viz) emp(viz);
-          }
-        }
-        if (atual.elev) {
-          const p = destinos.get(chave(atual.elev.para.x, atual.elev.para.y, atual.elev.para.z));
-          if (p) emp({ ...p, elev: null });
-        }
-        const p2 = grade.lista.find(b => b.elev &&
-          chave(b.elev.inicio.x, b.elev.inicio.y, b.elev.inicio.z) === chave(atual.x, atual.y, atual.z));
-        if (p2) emp(p2);
-      }
-      return dist;
-    };
-    const dist = alcanca(g, spawn);
+    // alcançabilidade: a MESMA função do validador (elevadores e pontes como arestas)
+    const dist = alcancaveis(g, spawn);
     for (const m of moedas) {
       if (!dist.has(chave(m.x, m.y, m.z))) sempreAlcancaveis = false;
       if (!g.andavel(m)) sempreEmBlocoValido = false;      // buraco/parede/teto
@@ -129,9 +87,14 @@ for (let i = 0; i < mod.NIVEIS.length; i++) {
   ok(sempreQuantidadeCerta, `sempre ${quantidade} moedas (nunca mais, nunca menos)`);
   ok(sempreAlcancaveis, 'todas as moedas sempre alcançáveis a partir do spawn');
   ok(sempreEmBlocoValido, 'nenhuma moeda em buraco, parede ou blco coberto');
-  ok(combinacoes.size > 1, `posições variam: ${combinacoes.size} combinações diferentes em ${SORTEIOS} sorteios`);
-  ok(blocosSorteados.size >= Math.min(quantidade * 2, 8),
-     `as moedas se espalham: ${blocosSorteados.size} blocos diferentes já receberam moeda`);
+  if (nivel.seed != null) {
+    // fase com semente fixa: o sorteio é PARA SER o mesmo sempre
+    ok(combinacoes.size === 1, `semente fixa (${nivel.seed}): mesmo sorteio em todas as partidas`);
+  } else {
+    ok(combinacoes.size > 1, `posições variam: ${combinacoes.size} combinações diferentes em ${SORTEIOS} sorteios`);
+    ok(blocosSorteados.size >= Math.min(quantidade * 2, 8),
+       `as moedas se espalham: ${blocosSorteados.size} blocos diferentes já receberam moeda`);
+  }
 
   // distribuição: nenhum bloco deve dominar (sinal de viés)
   const contagens = [...blocosSorteados.values()].sort((a, b) => b - a);

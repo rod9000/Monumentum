@@ -1,127 +1,19 @@
-/* Validador do protótipo: extrai o módulo do HTML, checa a sintaxe e testa os
-   dados de todas as fases — incluindo elevadores (a plataforma é uma PONTE
-   entre sua posição inicial e seu destino). */
-const fs = require('fs');
-const path = require('path');
-const { execFileSync } = require('child_process');
+/* Validador das fases: lê os dados de src/dados/niveis.js (os mesmos do jogo)
+   e testa cada uma — alcance a pé e de elevador, moedas, elevadores e sorteio.
+   A plataforma de elevador é tratada como uma PONTE entre sua posição inicial
+   e seu destino. As regras de caminhada vêm de src/grade.js (mesmas do jogo). */
+import { NIVEIS } from './src/dados/niveis.js';
+import { Grade, chave, alcancaveis } from './src/grade.js';
 
-const arquivo = path.join(__dirname, 'diorama-puzzle.html');
-const html = fs.readFileSync(arquivo, 'utf8');
-
-/* ---------- 1. extrai o módulo ---------- */
-const m = html.match(/<script type="module">([\s\S]*?)<\/script>/);
-if (!m) { console.error('FALHA: módulo não encontrado'); process.exit(1); }
-const modulo = path.join(__dirname, 'jogo.extraido.mjs');
-fs.writeFileSync(modulo, m[1]);
-process.on('exit', () => { try { fs.unlinkSync(modulo); } catch { /* já removido */ } });
-console.log('módulo extraído:', m[1].length, 'caracteres');
-
-/* ---------- 2. sintaxe ---------- */
-try {
-  execFileSync(process.execPath, ['--check', modulo], { stdio: 'pipe' });
-  console.log('SINTAXE: OK');
-} catch (e) {
-  console.error('SINTAXE: FALHOU\n' + e.stderr.toString());
-  process.exit(1);
-}
-
-/* ---------- 3. dados das fases ---------- */
-const src = m[1];
-const ini = src.indexOf('const NIVEIS = [');
-const fim = src.indexOf('let indiceNivel');
-if (ini < 0 || fim < 0) { console.error('NIVEIS não encontrado'); process.exit(1); }
-const codigoNiveis = src.slice(ini, fim).replace('const NIVEIS =', 'return');
-const NIVEIS = new Function(codigoNiveis)();
-
-/* ---------- 4. regras (as mesmas do jogo) ---------- */
-const TIPOS_ANDAVEIS = new Set(['chao', 'moeda', 'spawn', 'elevador']);
-const chave = (x, y, z) => `${Math.round(x)}|${Math.round(y)}|${Math.round(z)}`;
 const HORIZONTAIS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-class Grade {
-  constructor(blocos) {
-    this.lista = blocos;
-    this.mapa = new Map();
-    for (const b of blocos) this.mapa.set(chave(b.x, b.y, b.z), b);
-  }
-  obter(x, y, z) { return this.mapa.get(chave(x, y, z)) || null; }
-  tem(x, y, z) { return this.mapa.has(chave(x, y, z)); }
-  andavel(b) {
-    if (!b || !TIPOS_ANDAVEIS.has(b.tipo)) return false;
-    return !this.tem(b.x, b.y + 1, b.z);
-  }
-  podeMover(de, para) {
-    if (!this.andavel(para)) return false;
-    const dx = Math.abs(para.x - de.x);
-    const dz = Math.abs(para.z - de.z);
-    const dy = Math.abs(para.y - de.y);
-    return dx + dz === 1 && dy <= 1;
-  }
-  vizinhos(b) {
-    const v = [];
-    for (const [dx, dz] of HORIZONTAIS) {
-      for (const dy of [0, 1, -1]) {
-        const alvo = this.obter(b.x + dx, b.y + dy, b.z + dz);
-        if (this.podeMover(b, alvo)) v.push(alvo);
-      }
-    }
-    return v;
-  }
-  rota(de, para) {
-    if (de === para || !this.andavel(para)) return null;
-    const ant = new Map([[chave(de.x, de.y, de.z), null]]);
-    const fila = [de];
-    while (fila.length) {
-      const a = fila.shift();
-      if (a === para) {
-        const c = []; let p = a;
-        while (p) { c.unshift(p); p = ant.get(chave(p.x, p.y, p.z)); }
-        return c.slice(1);
-      }
-      for (const v of this.vizinhos(a)) {
-        const k = chave(v.x, v.y, v.z);
-        if (!ant.has(k)) { ant.set(k, a); fila.push(v); }
-      }
-    }
-    return null;
-  }
-  /** Alcance tratando elevadores como ponte entre início e destino. */
-  alcance(de) {
-    const dist = new Map([[chave(de.x, de.y, de.z), 0]]);
-    const nos = new Map();
-    for (const b of this.lista) if (this.andavel(b)) nos.set(chave(b.x, b.y, b.z), b);
-    const elevadores = this.lista.filter(b => b.elev);
-    const fila = [{ b: de, d: 0 }];
-    while (fila.length) {
-      const { b: atual, d } = fila.shift();
-      const empurrar = alvo => {
-        const k = chave(alvo.x, alvo.y, alvo.z);
-        if (dist.has(k)) return;
-        dist.set(k, d + 1);
-        fila.push({ b: alvo, d: d + 1 });
-      };
-      for (const [dx, dz] of HORIZONTAIS) {
-        for (const dy of [0, 1, -1]) {
-          const viz = nos.get(chave(atual.x + dx, atual.y + dy, atual.z + dz));
-          if (viz) empurrar(viz);
-        }
-      }
-      for (const e of elevadores) {
-        // sobe no elevador (a partir da posição inicial dele)
-        if (chave(e.x, e.y, e.z) === chave(atual.x, atual.y, atual.z)) empurrar(e.elev.para);
-        // desce do elevador (a partir do destino dele)
-        if (chave(e.elev.para.x, e.elev.para.y, e.elev.para.z) === chave(atual.x, atual.y, atual.z)) empurrar(e);
-      }
-    }
-    return dist;
-  }
-}
-
-/* ---------- 5. valida cada fase ---------- */
+/* ---------- valida cada fase ---------- */
 let falhas = 0;
 for (const nivel of NIVEIS) {
   console.log(`\n=== ${nivel.nome} ===`);
-  const g = new Grade(nivel.blocos);
+  const g = new Grade(nivel.blocos, nivel.pontes);
+  g.pontesLivres = true;                 // alcance: todas as pontes contam como arestas
+  const temPonte = (nivel.pontes || []).length > 0;
   const spawn = nivel.blocos.find(b => b.tipo === 'spawn');
   const moedas = g.lista.filter(b => b.tipo === 'moeda');
   const temElevador = g.lista.some(b => b.elev);
@@ -138,18 +30,27 @@ for (const nivel of NIVEIS) {
     else { console.log(`  X moeda (${md.x},${md.y},${md.z}) INALCANÇAVEL`); falhas++; }
   }
 
-  // isoladas A PÉ — só é problema em fases sem elevador
-  if (!temElevador) {
+  // pontas de ponte precisam ser blocos caminháveis
+  for (const p of nivel.pontes || []) {
+    for (const ponta of [p.a, p.b]) {
+      if (!g.andavel(g.obter(ponta.x, ponta.y, ponta.z))) { console.log(`  X ponte com ponta não caminhável em (${ponta.x},${ponta.y},${ponta.z})`); falhas++; }
+    }
+    if (![0, 1, 2, 3].includes(p.angulo)) { console.log(`  X ponte com ângulo inválido: ${p.angulo}`); falhas++; }
+    if (p.a.x !== p.b.x && p.a.z !== p.b.z) { console.log('  X ponte não é reta (as placas são em linha)'); falhas++; }
+  }
+
+  // isoladas A PÉ — só é problema em fases sem elevador nem ponte
+  if (!temElevador && !temPonte) {
     const isolados = g.lista.filter(b => g.andavel(b) && b !== spawn && !g.rota(spawn, b))
       .map(b => `(${b.x},${b.y},${b.z})`);
     if (isolados.length) { console.log('  X blocos andáveis isolados:', isolados.join(' ')); falhas++; }
     else console.log('  todos os blocos caminháveis são alcançáveis a partir do spawn');
   } else {
-    console.log('  fase com elevador: alcance verificado pela ponte inicio<->destino');
+    console.log('  fase com elevador/ponte: alcance verificado pelas arestas especiais');
   }
 
   // tudo alcançável, a pé ou de elevador
-  const dist = g.alcance(spawn);
+  const dist = alcancaveis(g, spawn);
   const inalcancaveis = g.lista.filter(b => g.andavel(b) && b !== spawn && !dist.has(chave(b.x, b.y, b.z)));
   if (inalcancaveis.length) {
     console.log('  X inalcançáveis mesmo com elevador:',

@@ -1,21 +1,22 @@
 /* ============================================================================
-   INSERSOR DE FASES — lê fases-geradas.json e recompõe o array NIVEIS no HTML
+   INSERSOR DE FASES — lê fases-geradas.json e recompõe o array NIVEIS em
+   src/dados/niveis.js
    ----------------------------------------------------------------------------
    Idempotente: pode ser rodado várias vezes seguidas sem corromper o arquivo.
-   A Fase 1 é preservada (blocos e configuração lidos do HTML); as demais fases
-   vêm do JSON gerado por gerar-fases.mjs.
+   A Fase 1 é preservada (blocos e configuração lidos do arquivo atual); as
+   demais fases vêm do JSON gerado por gerar-fases.mjs.
 
-   Uso:  node gerar-fases.mjs && node inserir-fases.mjs
+   Uso:  node gerar-fases.mjs && node inserir-fases.mjs && npm run build
    ============================================================================ */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
-const htmlPath = path.join(aqui, 'diorama-puzzle.html');
+const niveisPath = path.join(aqui, 'src', 'dados', 'niveis.js');
 const jsonPath = path.join(aqui, 'fases-geradas.json');
 
-const html = fs.readFileSync(htmlPath, 'utf8');
+const arquivo = fs.readFileSync(niveisPath, 'utf8');
 
 let fases;
 try {
@@ -29,11 +30,11 @@ if (!Array.isArray(fases) || !fases.length) {
   process.exit(1);
 }
 
-/* ---------- 1. lê a Fase 1 do HTML atual (por parsing, não por recorte) ---------- */
-const i1 = html.indexOf("nome: 'Fase 1");
-const i2 = html.indexOf("nome: 'Fase 2");
-if (i1 < 0 || i2 < 0) { console.error('não achei as fases no HTML'); process.exit(1); }
-const seg = html.slice(i1, i2);
+/* ---------- 1. lê a Fase 1 do arquivo atual (por parsing, não por recorte) ---------- */
+const i1 = arquivo.indexOf("nome: 'Fase 1");
+const i2 = arquivo.indexOf("nome: 'Fase 2");
+if (i1 < 0 || i2 < 0) { console.error('não achei as fases em src/dados/niveis.js'); process.exit(1); }
+const seg = arquivo.slice(i1, i2);
 
 // casa o começo do bloco (o `}` pode vir depois, no caso dos elevadores)
 const RE_BLOCO = /\{\s*x: (-?\d+),\s*y: (-?\d+),\s*z: (-?\d+),\s*tipo: '(\w+)'/g;
@@ -66,6 +67,10 @@ function faseParaTexto(f) {
   if (f.distanciaMoedas != null) config.push(`distanciaMoedas: ${f.distanciaMoedas}`);
   if (f.seed != null) config.push(`seed: ${f.seed}`);
   if (f.moedasFixas) config.push('moedasFixas: true');
+  if (f.pontes) {
+    const p = f.pontes.map(q => `{ a: { x: ${q.a.x}, y: ${q.a.y}, z: ${q.a.z} }, b: { x: ${q.b.x}, y: ${q.b.y}, z: ${q.b.z} }, angulo: ${q.angulo} }`);
+    config.push(`pontes: [${p.join(', ')}]`);
+  }
 
   return `    {
       nome: '${f.nome}',
@@ -77,32 +82,31 @@ ${linhas.join('\n')}
 }
 
 const todas = [fase1, ...fases];
-const novoNiveis = `const NIVEIS = [
+// o arquivo de dados não tem recuo de classe: tira os 2 espaços do modelo
+const novoNiveis = `export const NIVEIS = [
 ${todas.map(faseParaTexto).join(',\n\n')}
-  ];`;
+];`.replace(/^  /gm, '');
 
-/* ---------- 3. substitui o bloco inteiro no HTML ---------- */
-const inicio = html.indexOf('const NIVEIS = [');
-const fim = html.indexOf('let indiceNivel = 0;');
-if (inicio < 0 || fim < 0) { console.error('limites de NIVEIS não encontrados'); process.exit(1); }
-
-const novoHtml = html.slice(0, inicio) + novoNiveis + '\n\n  ' + html.slice(fim);
+/* ---------- 3. substitui o array inteiro (até o fim do arquivo) ---------- */
+const inicio = arquivo.indexOf('export const NIVEIS = [');
+if (inicio < 0) { console.error('início de NIVEIS não encontrado'); process.exit(1); }
+const cabecalho = arquivo.slice(0, inicio);
+const novoArquivo = cabecalho + novoNiveis + '\n';
 
 /* ---------- 4. sanidade antes de gravar ---------- */
 const totalFases = todas.length;
 const totalBlocos = todas.reduce((s, f) => s + f.blocos.length, 0);
-const blocosNoArquivo = (novoHtml.slice(novoHtml.indexOf('const NIVEIS = ['),
-  novoHtml.indexOf('let indiceNivel = 0;')).match(RE_BLOCO) || []).length;
+const blocosNoArquivo = (novoNiveis.match(RE_BLOCO) || []).length;
 
 if (blocosNoArquivo !== totalBlocos) {
   console.error(`contagem de blocos inesperada: ${blocosNoArquivo} (esperado ${totalBlocos})`);
   process.exit(1);
 }
-if (/(nome: 'Fase[^']*'\s*,\s*(moedas|blocos))/.test(novoHtml) === false) {
+if (/(nome: 'Fase[^']*'\s*,\s*(moedas|blocos))/.test(novoArquivo) === false) {
   console.error('formato das fases parece quebrado');
   process.exit(1);
 }
 
-fs.writeFileSync(htmlPath, novoHtml);
+fs.writeFileSync(niveisPath, novoArquivo);
 console.log(`NIVEIS recomposto via JSON: ${totalFases} fases, ${totalBlocos} blocos`);
 console.log('  ' + todas.map(f => `${f.nome} (${f.blocos.length})`).join(' · '));

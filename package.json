@@ -1,0 +1,14 @@
+{
+  "name": "monumentum",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Diorama Puzzle — puzzle 3D em grade (estilo Captain Toad)",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node validar.js && node teste/randomizacao.mjs && node teste/elevadores.mjs && node teste/pontes.mjs && node teste/procedural.mjs && node teste/testar-jogo.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

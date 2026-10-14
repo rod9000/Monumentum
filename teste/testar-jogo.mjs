@@ -7,6 +7,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { carregarJogo } from './carregar-jogo.mjs';
+import { alcancaveis } from '../src/grade.js';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.join(aqui, '..');
@@ -70,27 +72,10 @@ function esperarParar(maxFrames = 900) {
   return n - 1;
 }
 
-/* ---------- 2. extrai o módulo do HTML e aponta o THREE para o mock ---------- */
-const html = fs.readFileSync(path.join(raiz, 'diorama-puzzle.html'), 'utf8');
-const m = html.match(/<script type="module">([\s\S]*?)<\/script>/);
-if (!m) { console.error('módulo não encontrado no HTML'); process.exit(1); }
-
-let codigo = m[1].replace(
-  /import \* as THREE from 'three';/,
-  "import * as THREE from './mock-three.mjs';"
-);
-if (codigo === m[1]) { console.error('não foi possível substituir o import do THREE'); process.exit(1); }
-
-// expõe o estado interno para o teste (apenas no arquivo gerado)
-codigo = codigo.replace(
-  'window.__DIORAMA_PRONTO__ = true;',
-  `window.__DIORAMA_PRONTO__ = true;
-   export { personagem, camera, grade, estado, alvoCentro, coletadas, totalMoedas, CONFIG, NIVEIS, indiceNivel, carregarNivel, canvas as canvasJogo };`
-);
-fs.writeFileSync(path.join(aqui, 'jogo-teste.mjs'), codigo);
-
-/* ---------- 3. importa o jogo ---------- */
-const mod = await import('./jogo-teste.mjs');
+/* ---------- 2. carrega o jogo (bundle com o mock do THREE) ---------- */
+const mod = await carregarJogo(['personagem', 'camera', 'grade', 'estado', 'alvoCentro', 'coletadas', 'totalMoedas', 'CONFIG', 'NIVEIS', 'indiceNivel', 'carregarNivel', 'canvas as canvasJogo']);
+// fluxo de fases: as pontes de câmera são ignoradas aqui (o alinhamento real é testado em pontes.mjs)
+mod.CONFIG.pontesSempreAtivas = true;
 
 let falhas = 0;
 const detalhes = [];
@@ -171,41 +156,8 @@ const atravessarElevador = () => {
 /* ---------- 4. testes para cada fase ---------- */
 const niveis = mod.NIVEIS;
 console.log(`\nCarregadas ${niveis.length} fases: ${niveis.map(n => n.nome).join(' | ')}`);
-ok(mod.NIVEIS.length === 15, `há ${mod.NIVEIS.length} fases cadastradas`);
+ok(mod.NIVEIS.length === 18, `há ${mod.NIVEIS.length} fases cadastradas`);
 
-// alcançabilidade a pé OU por elevadores (réplica de distanciasComElevador do
-// jogo: o elevador é uma PONTE entre sua posição e seu destino). Serve para
-// qualquer número de elevadores, em qualquer ordem.
-const alcancaveisDe = (de) => {
-  const g = grade();
-  const ch = (x, y, z) => `${x}|${y}|${z}`;
-  const nos = new Map();
-  for (const b of g.lista) if (g.andavel(b)) nos.set(ch(b.x, b.y, b.z), b);
-  const dist = new Map([[ch(de.x, de.y, de.z), 0]]);
-  const fila = [{ b: de, d: 0 }];
-  while (fila.length) {
-    const { b: atual, d } = fila.shift();
-    const emp = alvo => {
-      const k = ch(alvo.x, alvo.y, alvo.z);
-      if (dist.has(k)) return;
-      dist.set(k, d + 1);
-      fila.push({ b: alvo, d: d + 1 });
-    };
-    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      for (const dy of [0, 1, -1]) {
-        const viz = nos.get(ch(atual.x + dx, atual.y + dy, atual.z + dz));
-        if (viz) emp(viz);
-      }
-    }
-    if (atual.elev) {
-      emp({ x: atual.elev.para.x, y: atual.elev.para.y, z: atual.elev.para.z, elev: null });
-    }
-    const p2 = g.lista.find(b => b.elev &&
-      ch(b.elev.inicio.x, b.elev.inicio.y, b.elev.inicio.z) === ch(atual.x, atual.y, atual.z));
-    if (p2) emp(p2);
-  }
-  return dist;
-};
 
 for (let i = 0; i < niveis.length; i++) {
   const nome = niveis[i].nome;
@@ -213,8 +165,8 @@ for (let i = 0; i < niveis.length; i++) {
   mod.carregarNivel(i);
   frames(3);
 
-  // --- bordas em todos os blocos ---
-  const blocos = grade().lista;
+  // --- bordas em todos os blocos (as placas de ponte são finas e não têm contorno) ---
+  const blocos = grade().lista.filter(b => b.tipo !== 'ponte');
   const comBorda = blocos.filter(b => b.malha && b.malha.children.some(f => f.isLineSegments));
   const esperado = CONFIG.mostrarBordas ? blocos.length : 0;
   ok(comBorda.length === esperado, `${blocos.length} blocos, ${comBorda.length} com borda (contorno)`);
@@ -224,7 +176,7 @@ for (let i = 0; i < niveis.length; i++) {
   // --- sorteio de moedas ---
   const desejadas = niveis[i].moedas ?? 0;
   const moedas = moedasAtuais();
-  const temElevador = grade().lista.some(b => b.elev);
+  const temElevador = grade().lista.some(b => b.elev) || (niveis[i].pontes || []).length > 0;
   ok(moedas.length === desejadas, `sorteio gerou ${moedas.length} moedas (pedido: ${desejadas})`);
   ok(moedas.every(m => !!m.moeda), 'cada moeda sorteada tem sua malha 3D flutuando');
   if (!temElevador) {
@@ -235,7 +187,7 @@ for (let i = 0; i < niveis.length; i++) {
   } else {
     // com elevador a moeda pode ficar do "lado de lá" (ou depois de DOIS
     // elevadores): a alcançabilidade é verificada pela ponte início<->destino
-    const dist = alcancaveisDe(spawnAtual());
+    const dist = alcancaveis(grade(), spawnAtual());
     ok(moedas.every(m => dist.has(`${m.x}|${m.y}|${m.z}`)),
        'todas as moedas são alcançáveis (a pé ou de elevador)');
   }
@@ -393,8 +345,8 @@ ok(mod.indiceNivel === 1, `avançou para o índice 1 (${mod.NIVEIS[mod.indiceNiv
 ok(estado().concluido === false, 'a Fase 2 começa sem o estado de conclusão');
 ok(document.getElementById('contador-moedas').textContent === `🪙 0/${mod.NIVEIS[1].moedas ?? 0}`,
    'contador de moedas zerado na Fase 2');
-ok(document.getElementById('nome-fase').textContent.includes(`2/${mod.NIVEIS.length}`),
-   `indicador mostra "2/${mod.NIVEIS.length}"`);
+ok(document.getElementById('nome-fase').textContent.includes('2/∞'),
+   'indicador mostra "2/∞"');
 
 // avança por todas as fases consecutivas
 const concluirFaseAtual = () => {
@@ -426,22 +378,21 @@ for (let i = 1; i < mod.NIVEIS.length; i++) {
   concluirFaseAtual();
   document.getElementById('btn-proxima').disparar('click');
   frames(3);
-  const esperado = (i + 1) % mod.NIVEIS.length;
+  const esperado = i + 1;                       // sem fim: depois da última vem a procedural
   ok(mod.indiceNivel === esperado, `Fase ${i + 1} concluída → foi para a Fase ${esperado + 1}`);
 }
 
-// depois da última fase o texto e o botão mudam (e voltam para a Fase 1)
+// não há fim: a última fase manual leva à primeira procedural, sem mudar o texto
 mod.carregarNivel(mod.NIVEIS.length - 1);
 frames(3);
 concluirFaseAtual();
-ok(document.getElementById('tela-conclusao').classList.contains('visivel'), `Fase ${mod.NIVEIS.length} (a última) concluída`);
-ok(document.getElementById('titulo-conclusao').textContent === 'Todas as Fases Concluídas!',
-   `na última fase o título é "${document.getElementById('titulo-conclusao').textContent}"`);
-ok(document.getElementById('btn-proxima').textContent.includes('Voltar à Fase 1'),
-   'na última fase o botão vira "Voltar à Fase 1"');
+ok(document.getElementById('titulo-conclusao').textContent === 'Fase Concluída!',
+   'na última fase manual o título continua "Fase Concluída!"');
+ok(document.getElementById('btn-proxima').textContent.includes('Próxima Fase'),
+   'o botão continua "Próxima Fase"');
 document.getElementById('btn-proxima').disparar('click');
 frames(3);
-ok(mod.indiceNivel === 0, 'o botão da última fase volta para a Fase 1');
+ok(mod.indiceNivel === mod.NIVEIS.length, 'depois da última manual, vai para a primeira procedural');
 
 // o HUD navega em ciclo: da primeira, ◀ volta para a última
 mod.carregarNivel(0);
@@ -451,7 +402,7 @@ frames(3);
 ok(mod.indiceNivel === mod.NIVEIS.length - 1, '◀ na Fase 1 volta para a última fase');
 document.getElementById('btn-fase-proxima').disparar('click');
 frames(3);
-ok(mod.indiceNivel === 0, '▶ na última fase volta para a Fase 1');
+ok(mod.indiceNivel === mod.NIVEIS.length, '▶ na última fase manual vai para a primeira procedural');
 
 console.log('\n' + (falhas === 0 ? '>>> SMOKE TEST OK' : `>>> ${falhas} FALHA(S):\n` + detalhes.map(d => '  - ' + d).join('\n')));
 process.exit(falhas === 0 ? 0 : 1);

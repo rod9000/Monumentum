@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Diorama Puzzle — Protótipo (Fase 1)</title>
+
+<style>
+  /* ============================================================
+     RESET / TELA CHEIA
+     ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; }
+  * { margin: 0; padding: 0; }
+
+  html, body { width: 100%; height: 100%; }
+
+  body {
+    overflow: hidden;
+    background: #0b1220;
+    color: #eef4ff;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Um único canvas ocupando 100% da tela */
+  #palco {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+  }
+
+  /* ============================================================
+     HUD (por cima do canvas, sem bloquear os cliques)
+     ============================================================ */
+  .hud {
+    position: fixed;
+    inset: 0;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 12px;
+    pointer-events: none; /* cliques passam para o canvas... */
+  }
+
+  .linha {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .cartao {
+    pointer-events: auto; /* ...exceto nos painéis e botões */
+    background: rgba(11, 18, 32, .66);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: 14px;
+    padding: 10px 14px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 12px 28px rgba(2, 6, 15, .28);
+  }
+
+  .cartao h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .72;
+  }
+
+  #nome-fase { font-size: 18px; font-weight: 800; margin-top: 2px; }
+
+  #contador-moedas {
+    font-size: 17px;
+    font-weight: 800;
+    color: #ffd34d;
+    white-space: nowrap;
+  }
+  .contador-moedas {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 8px 14px;
+  }
+  .contador-moedas .rotulo {
+    font-size: 9.5px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    opacity: .6;
+    font-weight: 700;
+  }
+  .contador-moedas #contador-moedas { font-size: 22px; line-height: 1.1; }
+
+  /* contador total (todas as fases) */
+  #total-moedas {
+    margin-top: 4px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #ffd34d;
+    opacity: .9;
+  }
+
+  /* popup "+1" que sobe da moeda coletada */
+  .popup-moeda {
+    position: fixed;
+    z-index: 6;
+    pointer-events: none;
+    font-size: 22px;
+    font-weight: 900;
+    color: #ffd34d;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, .55);
+    transform: translate(-50%, -50%);
+    animation: subir-moeda .9s ease-out forwards;
+  }
+  @keyframes subir-moeda {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to   { opacity: 0; transform: translate(-50%, -170%) scale(1.35); }
+  }
+
+  .acoes { display: flex; gap: 8px; align-items: center; }
+
+  .grupo-botoes { display: flex; gap: 6px; }
+  .grupo-botoes button { padding: 11px 13px; font-size: 16px; line-height: 1; }
+
+  /* ---------- botões ---------- */
+  button {
+    font: inherit;
+    font-weight: 700;
+    color: #eaf2ff;
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 12px;
+    padding: 11px 16px;
+    cursor: pointer;
+    /* ESSENCIAL: o .hud tem pointer-events:none (para o canvas receber os
+       cliques); sem reativar aqui, os botões ficam "transparentes" ao mouse */
+    pointer-events: auto;
+    transition: transform .12s ease, background .2s ease, border-color .2s ease;
+  }
+  button:hover { background: rgba(255, 255, 255, .20); transform: translateY(-1px); }
+  button:active { transform: translateY(0) scale(.97); }
+  button:focus-visible { outline: 2px solid #ffd34d; outline-offset: 2px; }
+
+  #botoes-giro { display: flex; gap: 10px; justify-content: center; }
+
+  #dica {
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.5;
+    opacity: .85;
+    background: rgba(11, 18, 32, .5);
+    border-radius: 10px;
+    padding: 6px 10px;
+  }
+
+  /* ---------- aviso flutuante ---------- */
+  #aviso {
+    align-self: center;
+    font-size: 13.5px;
+    font-weight: 700;
+    background: rgba(11, 18, 32, .8);
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: 999px;
+    padding: 8px 16px;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .25s ease, transform .25s ease;
+  }
+  #aviso.visivel { opacity: 1; transform: translateY(0); }
+
+  .rodape { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+  /* ============================================================
+     TELA DE CONCLUSÃO
+     ============================================================ */
+  #tela-conclusao {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: rgba(6, 12, 20, .55);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  #tela-conclusao.visivel { display: grid; }
+
+  .cartao-grande {
+    text-align: center;
+    padding: 28px 34px;
+    border-radius: 22px;
+    animation: surgir .35s cubic-bezier(.2, .9, .3, 1.4);
+  }
+  .cartao-grande .trofeu { font-size: 46px; }
+  .cartao-grande h2 { font-size: 28px; margin: 6px 0 8px; }
+  .cartao-grande p { opacity: .8; margin-bottom: 18px; font-size: 14.5px; }
+  .botoes-conclusao { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .cartao-grande button {
+    background: #ffd34d;
+    color: #2a1e00;
+    border-color: transparent;
+    padding: 12px 22px;
+    font-size: 15px;
+  }
+  .cartao-grande button:hover { background: #ffe07a; }
+  .cartao-grande button.secundario {
+    background: rgba(255, 255, 255, .12);
+    color: #eaf2ff;
+    border-color: rgba(255, 255, 255, .18);
+  }
+  .cartao-grande button.secundario:hover { background: rgba(255, 255, 255, .2); }
+
+  @keyframes surgir {
+    from { opacity: 0; transform: scale(.85) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ---------- erro de carregamento do CDN ---------- */
+  #erro-cdn {
+    position: fixed;
+    inset: 0;
+    display: none;
+    place-items: center;
+    background: #0b1220;
+    z-index: 20;
+    text-align: center;
+    padding: 30px;
+    line-height: 1.6;
+  }
+  #erro-cdn.visivel { display: grid; }
+
+  @media (max-width: 560px) {
+    .cartao { padding: 8px 11px; }
+    #nome-fase { font-size: 16px; }
+    button { padding: 10px 12px; font-size: 14px; }
+    #dica { font-size: 11.5px; }
+  }
+</style>
+</head>
+
+<body>
+  <!-- ============================================================
+       CENA 3D
+       ============================================================ -->
+  <canvas id="palco"></canvas>
+
+  <!-- ============================================================
+       INTERFACE
+       ============================================================ -->
+  <div class="hud">
+    <div class="linha">
+      <div class="cartao">
+        <h1>Diorama Puzzle</h1>
+        <div id="nome-fase">Carregando…</div>
+        <div id="total-moedas">Total 🪙 0/0</div>
+      </div>
+      <div class="acoes">
+        <div class="cartao contador-moedas">
+          <span class="rotulo">Moedas</span>
+          <span id="contador-moedas">🪙 0/0</span>
+        </div>
+        <div class="grupo-botoes">
+          <button id="btn-fase-anterior" title="Fase anterior">◀</button>
+          <button id="btn-fase-proxima" title="Próxima fase">▶</button>
+        </div>
+        <div class="grupo-botoes">
+          <button id="btn-zoom-menos" title="Afastar">−</button>
+          <button id="btn-zoom-mais" title="Aproximar">＋</button>
+        </div>
+        <button id="btn-reiniciar-hud" title="Recomeçar a fase">↺</button>
+      </div>
+    </div>
+
+    <div class="rodape">
+      <div id="aviso"></div>
+      <div id="botoes-giro">
+        <button id="btn-girar-esq">⟲ Girar p/ Esquerda</button>
+        <button id="btn-girar-dir">⟳ Girar p/ Direita</button>
+      </div>
+      <div id="dica">
+        Clique na face de cima de um bloco ao lado do personagem para andar &nbsp;•&nbsp;
+        <b>WASD</b>/setas andam &nbsp;•&nbsp; <b>Q</b>/<b>E</b> giram a tela &nbsp;•&nbsp;
+        roda do mouse dá zoom &nbsp;•&nbsp;
+        pontes: gire até as placas acenderem
+      </div>
+    </div>
+  </div>
+
+  <!-- Tela exibida quando todas as moedas são coletadas -->
+  <div id="tela-conclusao">
+    <div class="cartao cartao-grande">
+      <div class="trofeu">🏆</div>
+      <h2 id="titulo-conclusao">Fase Concluída!</h2>
+      <p id="texto-conclusao">Você coletou todas as moedas do diorama.</p>
+      <div class="botoes-conclusao">
+        <button id="btn-proxima" class="destaque">Próxima Fase ▶</button>
+        <button id="btn-reiniciar">Jogar de Novo</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mensagem caso a CDN do Three.js não carregue -->
+  <div id="erro-cdn">
+    <div>
+      <h2>Não foi possível carregar o Three.js 😕</h2>
+      <p>Verifique sua conexão com a internet (o jogo usa a CDN jsDelivr)<br />
+      e recarregue a página.</p>
+    </div>
+  </div>
+
+  <!-- Three.js via CDN (import map = forma moderna de carregar ES Modules) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <!-- Fallback: avisa se a CDN não responder -->
+  <script>
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        if (!window.__DIORAMA_PRONTO__) {
+          document.getElementById('erro-cdn').classList.add('visivel');
+        }
+      }, 8000);
+    });
+  </script>
+
+  <script type="module">
+<!--BUNDLE-->
+  </script>
+</body>
+</html>

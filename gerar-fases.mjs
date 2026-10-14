@@ -1,5 +1,5 @@
 /* ============================================================================
-   GERADOR DE FASES — 14 fases: horizontais, verticais, labirintos e elevadores
+   GERADOR DE FASES — 18 fases: horizontais, verticais, labirintos e elevadores
    ----------------------------------------------------------------------------
    Constrói os arrays de blocos, VALIDA cada fase e escreve o JSON que o
    insersor usa para recompor o NIVEIS no HTML.
@@ -12,103 +12,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Grade, chave, TIPOS_ANDAVEIS, alcancaveis } from './src/grade.js';
+import { semente as rndSeed, embaralhar } from './src/aleatorio.js';
+import { gerarLabirinto, gerarEspiral, escadaReta } from './src/dados/geradores.js';
+
+const HORIZONTAIS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 
-/* ---------- mesma lógica do jogo ---------- */
-const TIPOS_ANDAVEIS = new Set(['chao', 'moeda', 'spawn', 'elevador']);
-const chave = (x, y, z) => `${Math.round(x)}|${Math.round(y)}|${Math.round(z)}`;
-const HORIZONTAIS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-
-class Grade {
-  constructor(blocos) {
-    this.lista = blocos;
-    this.mapa = new Map();
-    for (const b of blocos) this.mapa.set(chave(b.x, b.y, b.z), b);
-  }
-  obter(x, y, z) { return this.mapa.get(chave(x, y, z)) || null; }
-  tem(x, y, z) { return this.mapa.has(chave(x, y, z)); }
-  andavel(b) {
-    if (!b || !TIPOS_ANDAVEIS.has(b.tipo)) return false;
-    return !this.tem(b.x, b.y + 1, b.z);
-  }
-  podeMover(de, para) {
-    if (!this.andavel(para)) return false;
-    const dx = Math.abs(para.x - de.x);
-    const dz = Math.abs(para.z - de.z);
-    const dy = Math.abs(para.y - de.y);
-    return dx + dz === 1 && dy <= 1;
-  }
-  vizinhos(b) {
-    const v = [];
-    for (const [dx, dz] of HORIZONTAIS) {
-      for (const dy of [0, 1, -1]) {
-        const alvo = this.obter(b.x + dx, b.y + dy, b.z + dz);
-        if (this.podeMover(b, alvo)) v.push(alvo);
-      }
-    }
-    return v;
-  }
-  /** BFS tratando elevadores como ponte entre início e destino. */
-  alcancaveis(de) {
-    const dist = new Map([[chave(de.x, de.y, de.z), 0]]);
-    const nos = new Map();
-    for (const b of this.lista) if (this.andavel(b)) nos.set(chave(b.x, b.y, b.z), b);
-    const destinos = new Map();
-    for (const b of this.lista) {
-      if (b.elev) destinos.set(chave(b.elev.para.x, b.elev.para.y, b.elev.para.z), b);
-    }
-    const fila = [{ b: de, d: 0 }];
-    while (fila.length) {
-      const { b: atual, d } = fila.shift();
-      const empurrar = (alvo) => {
-        const k = chave(alvo.x, alvo.y, alvo.z);
-        if (dist.has(k)) return;
-        dist.set(k, d + 1);
-        fila.push({ b: alvo, d: d + 1 });
-      };
-      for (const [dx, dz] of HORIZONTAIS) {
-        for (const dy of [0, 1, -1]) {
-          const viz = nos.get(chave(atual.x + dx, atual.y + dy, atual.z + dz));
-          if (viz) empurrar(viz);                    // destino do elevador NÃO
-        }                                            // é alcançável a pé
-      }
-      const elev = destinos.get(chave(atual.x, atual.y, atual.z));
-      if (elev) empurrar(elev);                      // sobe no elevador
-      if (atual.elev) {
-        const k = chave(atual.elev.para.x, atual.elev.para.y, atual.elev.para.z);
-        if (!dist.has(k)) {
-          dist.set(k, d + 1);
-          fila.push({ b: { x: atual.elev.para.x, y: atual.elev.para.y, z: atual.elev.para.z }, d: d + 1 });
-        }
-      }
-    }
-    return dist;
-  }
-  rota(de, para) {
-    if (de === para || !this.andavel(para)) return null;
-    const ant = new Map([[chave(de.x, de.y, de.z), null]]);
-    const fila = [de];
-    while (fila.length) {
-      const a = fila.shift();
-      if (a === para) {
-        const c = []; let p = a;
-        while (p) { c.unshift(p); p = ant.get(chave(p.x, p.y, p.z)); }
-        return c.slice(1);
-      }
-      for (const v of this.vizinhos(a)) {
-        const k = chave(v.x, v.y, v.z);
-        if (!ant.has(k)) { ant.set(k, a); fila.push(v); }
-      }
-    }
-    return null;
-  }
-}
-
 /* ---------- validação ---------- */
-function validar(nome, blocos) {
+function validar(nome, blocos, pontes = []) {
   const erros = [];
-  const g = new Grade(blocos);
+  const g = new Grade(blocos, pontes);
+  g.pontesLivres = true;                 // alcance: pontes contam como arestas
   const vistas = new Set();
   for (const b of blocos) {
     for (const c of ['x', 'y', 'z', 'tipo']) if (!(c in b)) erros.push(`bloco mal formado: ${JSON.stringify(b)}`);
@@ -119,11 +35,12 @@ function validar(nome, blocos) {
   }
   const spawn = blocos.find(b => b.tipo === 'spawn');
   const temElevador = blocos.some(b => b.elev);
+  const temPonte = pontes.length > 0;
   if (!spawn) erros.push('sem spawn');
   else {
     // blocos caminháveis isolados A PÉ (só é erro em fases sem elevador —
     // com elevador, ficar do outro lado do vão é justamente o objetivo)
-    if (!temElevador) {
+    if (!temElevador && !temPonte) {
       for (const b of blocos) {
         if (g.andavel(b) && b !== spawn && !g.rota(spawn, b)) {
           erros.push(`bloco caminhável isolado em ${chave(b.x, b.y, b.z)}`);
@@ -131,7 +48,7 @@ function validar(nome, blocos) {
       }
     }
     // tudo alcançável considerando os elevadores
-    const dist = g.alcancaveis(spawn);
+    const dist = alcancaveis(g, spawn);
     const inalcancaveis = blocos.filter(b => g.andavel(b) && b !== spawn && !dist.has(chave(b.x, b.y, b.z)));
     if (inalcancaveis.length) {
       erros.push(`inalcançáveis mesmo com elevador: ${inalcancaveis.map(b => chave(b.x, b.y, b.z)).join(' ')}`);
@@ -145,17 +62,19 @@ function validar(nome, blocos) {
       }
     }
   }
+  // pontas de ponte precisam ser blocos caminháveis, e o ângulo ser 0..3
+  for (const p of pontes) {
+    for (const ponta of [p.a, p.b]) {
+      if (!g.andavel(g.obter(ponta.x, ponta.y, ponta.z))) erros.push(`ponte com ponta não caminhável em ${chave(ponta.x, ponta.y, ponta.z)}`);
+    }
+    if (![0, 1, 2, 3].includes(p.angulo)) erros.push(`ponte com ângulo inválido: ${p.angulo}`);
+    if (p.a.x !== p.b.x && p.a.z !== p.b.z) erros.push('ponte não é reta (as placas são em linha)');
+  }
   const contagem = {};
   for (const b of blocos) contagem[b.tipo] = (contagem[b.tipo] || 0) + 1;
   return { erros, contagem, tamanho: blocos.length };
 }
 
-/* ---------- utilidades de geração ---------- */
-function rndSeed(v) {
-  let a = v >>> 0;
-  return () => { a += 0x6D2B79F5; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
-}
-const embaralhar = (l, r) => { for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; } };
 
 /** Remove células de um mapa plano até sobrar `lacunas`, sem nunca isolar blocos. */
 function furar(grade, maxLacunas, rnd) {
@@ -173,76 +92,6 @@ function furar(grade, maxLacunas, rnd) {
     else { grade.lista = backup; grade.mapa = new Map(grade.lista.map(b => [chave(b.x, b.y, b.z), b])); }
   }
   return grade.lista;
-}
-
-/* ============================================================================
-   HELPERS DE LAYOUT
-   ============================================================================ */
-
-/** Labirinto perfeito (recursive backtracker) numa grade `lado x lado`.
- *  As salas ficam nas coordenadas ímpares; a borda é sempre parede.
- *  Devolve um Set com as chaves "x,z" das células que são PAREDE. */
-function gerarLabirinto(lado, rnd, chanceAtalho = 0.2) {
-  const salas = (lado - 1) / 2;
-  const k = (x, z) => `${x},${z}`;
-  const paredes = new Set();
-  for (let x = 0; x < lado; x++) for (let z = 0; z < lado; z++) paredes.add(k(x, z));
-  const visitadas = new Set([k(0, 0)]);
-  paredes.delete(k(1, 1));
-  const pilha = [[0, 0]];
-  while (pilha.length) {
-    const [cx, cz] = pilha[pilha.length - 1];
-    const opcoes = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-      .map(([dx, dz]) => [cx + dx, cz + dz])
-      .filter(([nx, nz]) => nx >= 0 && nz >= 0 && nx < salas && nz < salas && !visitadas.has(k(nx, nz)));
-    if (!opcoes.length) { pilha.pop(); continue; }
-    const [nx, nz] = opcoes[Math.floor(rnd() * opcoes.length)];
-    visitadas.add(k(nx, nz));
-    paredes.delete(k(nx * 2 + 1, nz * 2 + 1));          // sala nova
-    paredes.delete(k(cx + nx + 1, cz + nz + 1));        // parede entre as duas salas
-    pilha.push([nx, nz]);
-  }
-  // atalhos: abre paredes internas para criar ciclos (labirinto com rotas alternativas)
-  const internas = [...paredes].filter(s => {
-    const [x, z] = s.split(',').map(Number);
-    return x > 0 && z > 0 && x < lado - 1 && z < lado - 1;
-  });
-  embaralhar(internas, rnd);
-  for (const s of internas) if (rnd() < chanceAtalho) paredes.delete(s);
-  return paredes;
-}
-
-/** Células de uma espiral quadrada (anéis concêntricos, de fora para dentro),
- *  em ordem de visita: cada célula é adjacente à seguinte. Serve de rota para
- *  rampas/escadas em espiral. */
-function gerarEspiral(lado) {
-  const cel = [];
-  let x0 = 0, z0 = 0, x1 = lado - 1, z1 = lado - 1;
-  while (x0 <= x1 && z0 <= z1) {
-    for (let x = x0; x <= x1; x++) cel.push([x, z0]);
-    for (let z = z0 + 1; z <= z1; z++) cel.push([x1, z]);
-    for (let x = x1 - 1; x >= x0; x--) cel.push([x, z1]);
-    for (let z = z1 - 1; z > z0; z--) cel.push([x0, z]);
-    x0++; z0++; x1--; z1--;
-  }
-  return cel;
-}
-
-/** Escada reta: cada degrau sobe 1 em Y e anda 1 em Z (x fixo), sempre em
- *  coluna (x,z) distinta — um degrau NUNCA pode ficar acima de outro, porque
- *  a célula de cima tamparia a de baixo e ela deixaria de ser caminhável.
- *  Os vãos abaixo de cada degrau são preenchidos com 'parede' (e 'chao' no
- *  piso) até encostar em algo que já exista. */
-function escadaReta(x0, z0, y0, passos, dz, existe) {
-  const blocos = [];
-  for (let i = 0; i < passos; i++) {
-    const x = x0, y = y0 + i, z = z0 + dz * i;
-    for (let k = y - 1; k >= 0 && !existe(x, k, z); k--) {
-      blocos.push({ x, y: k, z, tipo: k === 0 ? 'chao' : 'parede' });
-    }
-    if (!existe(x, y, z)) blocos.push({ x, y, z, tipo: 'chao' });
-  }
-  return blocos;
 }
 
 /* ============================================================================
@@ -582,6 +431,37 @@ const f15 = [];
 f15.sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
 
 /* ============================================================================
+   FASES 16–18 — PONTES DE CÂMERA (perspectiva)
+   Uma ponte liga duas pontas distantes só quando a câmera está assentada no
+   quadrante `angulo` (0 = inicial, 1 = +90°, 2 = 180°, 3 = -90°).
+   ============================================================================ */
+const ilha = (x0, x1, z0, z1) => {
+  const out = [];
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) out.push({ x, y: 0, z, tipo: 'chao' });
+  return out;
+};
+const comSpawn = blocos => {
+  blocos.find(b => b.x === 0 && b.z === 0).tipo = 'spawn';
+  return blocos;
+};
+
+// 16 — duas ilhas separadas por um vão; a ponte só existe com a câmera girada 90°
+const f16 = comSpawn([...ilha(0, 2, 0, 2), ...ilha(6, 8, 0, 2)]);
+const P16 = [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }];
+
+// 17 — duas pontes em ângulos diferentes, em sequência (ilha do meio liga as duas)
+const f17 = comSpawn([...ilha(0, 2, 0, 2), ...ilha(6, 8, 0, 2), ...ilha(6, 8, 6, 8)]);
+const P17 = [
+  { a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 },
+  { a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 3 }
+];
+
+// 18 — elevador (ilha inicial -> ilha do meio) seguido de uma ponte em 180°
+const f18 = comSpawn([...ilha(0, 2, 0, 2), ...ilha(6, 8, 0, 2), ...ilha(6, 8, 6, 8)]);
+f18.push({ x: 3, y: 0, z: 1, tipo: 'elevador', elev: { eixo: 'x', para: { x: 5, y: 0, z: 1 } } });
+const P18 = [{ a: { x: 7, y: 0, z: 2 }, b: { x: 7, y: 0, z: 6 }, angulo: 2 }];
+
+/* ============================================================================
    VALIDAÇÃO E IMPRESSÃO
    ============================================================================ */
 const fases = [
@@ -598,12 +478,15 @@ const fases = [
   { nome: 'Fase 12 — O Elevador Secreto', bloco: f12, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 13 — Duas Rotas', bloco: f13, moedas: 4, distanciaMoedas: 2 },
   { nome: 'Fase 14 — O Labirinto Vertical', bloco: f14, moedas: 4, distanciaMoedas: 2 },
-  { nome: 'Fase 15 — O Grand Tour', bloco: f15, moedas: 5, distanciaMoedas: 2 }
+  { nome: 'Fase 15 — O Grand Tour', bloco: f15, moedas: 5, distanciaMoedas: 2 },
+  { nome: 'Fase 16 — Ilusão de Ótica', bloco: f16, moedas: 3, distanciaMoedas: 2, seed: 1601, pontes: P16 },
+  { nome: 'Fase 17 — Dois Ângulos', bloco: f17, moedas: 4, distanciaMoedas: 3, seed: 1701, pontes: P17 },
+  { nome: 'Fase 18 — Ponte e Elevador', bloco: f18, moedas: 3, distanciaMoedas: 3, seed: 1801, pontes: P18 }
 ];
 
 let falhas = 0;
 for (const f of fases) {
-  const r = validar(f.nome, f.bloco);
+  const r = validar(f.nome, f.bloco, f.pontes);
   console.log(`\n=== ${f.nome} — ${r.tamanho} blocos ${JSON.stringify(r.contagem)} ===`);
   if (r.erros.length) { falhas += r.erros.length; r.erros.slice(0, 10).forEach(e => console.log('  ✘ ' + e)); }
   else console.log('  ✔ válida (spawn alcança tudo, a pé ou de elevador)');
@@ -616,6 +499,8 @@ const fasesJson = fases.map(f => ({
   nome: f.nome,
   moedas: f.moedas,
   distanciaMoedas: f.distanciaMoedas,
+  ...(f.seed != null ? { seed: f.seed } : {}),
+  ...(f.pontes ? { pontes: f.pontes } : {}),
   blocos: f.bloco
 }));
 

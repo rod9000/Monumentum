@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { carregarJogo } from './carregar-jogo.mjs';
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 const raiz = path.join(aqui, '..');
@@ -36,15 +37,7 @@ let raf = null;
 globalThis.requestAnimationFrame = f => { raf = f; };
 globalThis.window = { innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1, addEventListener() {} };
 
-const html = fs.readFileSync(path.join(raiz, 'diorama-puzzle.html'), 'utf8');
-let codigo = html.match(/<script type="module">([\s\S]*?)<\/script>/)[1]
-  .replace(/import \* as THREE from 'three';/, "import * as THREE from './mock-three.mjs';")
-  .replace('window.__DIORAMA_PRONTO__ = true;',
-    `window.__DIORAMA_PRONTO__ = true;
-     export { grade, estado, personagem, NIVEIS, carregarNivel, indiceNivel, CONFIG, canvas as canvasJogo };`);
-fs.writeFileSync(path.join(aqui, 'jogo-teste.mjs'), codigo);
-
-const mod = await import('./jogo-teste.mjs');
+const mod = await carregarJogo(['grade', 'estado', 'personagem', 'NIVEIS', 'carregarNivel', 'indiceNivel', 'CONFIG', 'canvas as canvasJogo']);
 let agora = performance.now();
 const frame = () => { agora += 16; const f = raf; raf = null; if (!f) throw new Error('raf sumiu'); f(agora); };
 const frames = n => { for (let i = 0; i < n; i++) frame(); };

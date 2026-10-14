@@ -35,8 +35,9 @@ O progresso é salvo no navegador (`localStorage`) — ao reabrir, você continu
 
 ## Criar a Fase 2 (e a 3, a 4…)
 
-Toda a fase é **dados**. No arquivo `diorama-puzzle.html`, seção
-**1) DADOS DAS FASES**, copie o objeto do nível e desenhe um novo array:
+Toda a fase é **dados**. As fases manuais ficam em `src/dados/niveis.js`
+(array `NIVEIS`). Para criar uma fase, copie o objeto do nível e desenhe um
+novo array (ou use o pipeline de geração descrito mais abaixo):
 
 ```js
 const NIVEIS = [
@@ -108,7 +109,11 @@ blocos adjacentes, mude `permitirCliqueDistante` para `false` em `CONFIG`.
 | 12 — O Elevador Secreto | elevador + labirinto | o elevador sobe até um labirinto suspenso; desembarcar é fácil, sair de lá com as moedas é o desafio |
 | 13 — Duas Rotas | escolha | dois caminhos para o mesmo terraço: o elevador (rápido, mas precisa **esperar**) ou a escada (longa, sempre Disponível) |
 | 14 — O Labirinto Vertical | labirinto em 2 andares | labirinto embaixo e labirinto em cima (3 blocos mais alto), ligados por uma escada no pátio |
-| 15 — O Grand Tour | **final** | usa tudo: labirinto, pinguela, elevador horizontal e escada final até o terraço das últimas moedas |
+| 15 — O Grand Tour | usa tudo | labirinto, pinguela, elevador horizontal e escada final até o terraço das últimas moedas |
+| 16 — Ilusão de Ótica | **ponte de câmera** | duas ilhas separadas por um vão; a ponte só existe com a câmera girada 90° |
+| 17 — Dois Ângulos | **duas pontes** | pontes em ângulos diferentes, em sequência (girar 90° e depois 270°) |
+| 18 — Ponte e Elevador | ponte + elevador | elevador entre as ilhas e uma ponte que só aparece com a câmera em 180° |
+| 19 em diante | **procedural** | labirintos gerados a partir do número da fase (ver abaixo) |
 
 Na 13 a graça é **ler o estado do elevador**: se ele acabou de sair, compensa mais subir a escada.
 
@@ -137,37 +142,93 @@ O sorteio de moedas **ignora o bloco do elevador** (a plataforma não pode virar
 moeda) e atravessa o vão pelas pontas — por isso moedas também aparecem do
 outro lado.
 
-O pipeline agora é `node gerar-fases.mjs` (valida + escreve
+O pipeline das fases manuais é `node gerar-fases.mjs` (valida + escreve
 `fases-geradas.json`) seguido de `node inserir-fases.mjs` (recompõe o `NIVEIS`
-no HTML, preservando a Fase 1). O JSON é a fonte da verdade das fases 2 a 15.
+em `src/dados/niveis.js`, preservando a Fase 1). O JSON é a fonte da verdade
+das fases 2 a 18. Depois, `npm run build` gera o `diorama-puzzle.html` (um
+bundle inline, que funciona com duplo clique).
 
-## Estrutura do código (tudo no mesmo arquivo)
+### Pontes de câmera
 
-| Seção | O que faz |
+Uma ponte liga duas pontas distantes **só quando a câmera está no ângulo dela**
+(0 = inicial, 1 = +90°, 2 = 180°, 3 = -90°). Enquanto a câmera está alinhada, as
+placas quadradas finas no vão ficam sólidas e **dá para andar por cima delas**
+(clique ou setas, uma placa de cada vez). Fora do alinhamento, ficam apagadas.
+
+O **pulo** é uma mecânica separada, com o bloco `'pulo'` (quadrado com círculo):
+nele, **duas setas seguidas** (até 0,4 s entre elas) na mesma direção pulam até o
+próximo bloco de pulo nessa direção (até 12 células, por cima do que houver no meio).
+Sem bloco de pulo na direção, cai. As fases procedurais criam pares de pulo que
+voltam um ao outro (é sempre possível pular de volta).
+Uma seta só anda normalmente. Não depende da câmera nem da ponte.
+
+Se o personagem tentar pisar numa placa fora do alinhamento, ou pular com a
+câmera errada, ele **cai no vão e a fase reinicia**. Se a câmera já está
+girando para o ângulo certo, ele espera a ponte acender (até 2 s) em vez de cair;
+os avisos dizem quantos giros e qual tecla (Q/E) usar. As placas são células da
+grade (tipo 'ponte') e só existem para a caminhada com a câmera alinhada. Os dados
+ficam em `pontes` do nível:
+
+```js
+pontes: [{ a: { x: 2, y: 0, z: 1 }, b: { x: 6, y: 0, z: 1 }, angulo: 1 }]
+```
+
+A ponte precisa ser reta (horizontal ou vertical).
+
+### Fases procedurais
+
+Depois das fases manuais, o jogo não termina: `src/procedural.js` gera a fase
+`n` a partir do próprio número. O mesmo `n` sempre dá o mesmo mapa, e cada mapa
+é validado (piso e moedas alcançáveis) antes de ser usado. Há duas famílias de mapa:
+
+* **labirinto**: labirinto perfeito com atalhos;
+* **ilhas em andares**: 3 ou mais ilhas (2 andares), ligadas por pontes de câmera,
+  elevadores horizontais, passarelas que sobem um andar e **elevadores verticais**
+  que levam do térreo ao andar de cima.
+
+A dificuldade cresce
+com `n`: mais ilhas, labirinto de até 13×13, menos atalhos e mais moedas (até 8).
+O HUD mostra o total como `N/∞`.
+
+## Estrutura do código
+
+| Arquivo | O que faz |
 |---|---|
-| 1) Dados das fases | matriz `{x, y, z, tipo}` — onde se criam novas fases |
-| 2) Sistema de grade | `Grade`, `andavel()`, `podeMover()`, `rota()` |
-| 3) Cena, câmera e luzes | `OrthographicCamera` isométrica, sombras, ambiente |
-| 4) Construção do nível | dados → malhas 3D, base/plinto, enquadramento automático |
-| 5) Personagem | esfera com olhos, giro e animação de passo |
-| 6) Controle de câmera | órbita de 90° interpolada (independente de FPS) |
-| 7) Movimentação | raycast, validação na grade, tween do passo |
-| 8) Interface | HUD, avisos, tela de conclusão |
-| 9) Loop principal | `requestAnimationFrame` |
+| `src/main.js` | cena 3D, câmera, personagem, movimentação, HUD e loop |
+| `src/dados/niveis.js` | dados das fases manuais (`NIVEIS`) |
+| `src/dados/geradores.js` | labirinto, espiral e escada usados pelos geradores |
+| `src/grade.js` | `Grade` (caminhada, elevadores e pontes), alcance e distâncias — lógica pura |
+| `src/elevadores.js` | dados e movimentação dos elevadores |
+| `src/moedas.js` | sorteio padronizado de moedas |
+| `src/procedural.js` | fases infinitas determinísticas |
+| `src/config.js` | `CONFIG` (ajustes finos) |
+| `src/aleatorio.js` | RNG determinístico (semente) |
+| `index.template.html` + `build.mjs` | template e build que geram `diorama-puzzle.html` |
 
-Ajustes finos ficam no objeto `CONFIG` (duração do passo, altura do pulo,
-suavidade do giro, margem de enquadramento, alerta nativo etc.).
+Ajustes finos ficam no objeto `CONFIG` (`src/config.js`): duração do passo,
+altura do pulo e da ponte, suavidade do giro, margem de enquadramento etc.
+
 
 ## Testes (opcional)
 
-Requer Node.js. Quatro suítes independentes:
+Requer Node.js. `npm install` uma vez (instala o esbuild) e depois:
 
 ```bash
-node validar.js              # sintaxe do módulo + sanidade dos dados das 15 fases
+npm run build                # gera diorama-puzzle.html a partir de src/
+npm test                     # roda todas as suítes abaixo
+```
+
+```bash
+node validar.js              # sanidade dos dados das fases manuais
 node teste/randomizacao.mjs  # sorteio de moedas: 120+300 sorteios por fase
 node teste/elevadores.mjs    # embarque, travessia, desembarque e moedas do vão
+node teste/pontes.mjs        # pontes de câmera: ângulo certo/errado e queda no vão
+node teste/procedural.mjs    # 500 fases procedurais válidas e fluxo de jogo
 node teste/testar-jogo.mjs   # smoke test: bordas, sorteio, câmera, zoom, Q/E, progressão
 ```
+
+Os testes carregam `src/main.js` via esbuild (`teste/carregar-jogo.mjs`), com o
+Three.js substituído por `teste/mock-three.mjs`.
 
 `validar.js` confere conectividade (todas as moedas alcançáveis a partir do
 spawn, nenhum bloco isolado, sem coordenadas duplicadas, apoio nas duas pontas
