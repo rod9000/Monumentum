@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node build.mjs",
     "curva-dificuldade": "node teste/curva-dificuldade.mjs",
-    "test": "node validar.js && node teste/randomizacao.mjs && node teste/elevadores.mjs && node teste/pontes.mjs && node teste/procedural.mjs && node teste/toque.mjs && node teste/par.mjs && node teste/dificuldade.mjs && node teste/progresso.mjs && node teste/fluxo.mjs && node teste/estrutura.mjs && node teste/testar-jogo.mjs",
+    "test": "node validar.js && node teste/randomizacao.mjs && node teste/elevadores.mjs && node teste/pontes.mjs && node teste/procedural.mjs && node teste/toque.mjs && node teste/par.mjs && node teste/dificuldade.mjs && node teste/progresso.mjs && node teste/skins.mjs && node teste/fluxo.mjs && node teste/estrutura.mjs && node teste/testar-jogo.mjs",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

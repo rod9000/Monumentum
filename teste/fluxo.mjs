@@ -64,14 +64,14 @@ const contadorNaTela = () => el('contador-moedas').textContent;
 
 console.log('--- 1) moedas: reiniciar volta ao que era antes ---');
 mod.carregarNivel(iMoedas); frames(3);
-const totalAntes = mod.progresso.total;
-ok(totalNaTela() === `Total 🪙 ${totalAntes}`, `ao entrar na fase, o total mostra ${totalAntes}`);
+const totalAntes = mod.progresso.saldo;
+ok(totalNaTela() === `Saldo 🪙 ${totalAntes}`, `ao entrar na fase, o saldo mostra ${totalAntes}`);
 mod.definirRota([mod.grade.obter(0, 0, 1)]); esperarPasso(); frames(20);
-ok(mod.coletadas === 1 && totalNaTela() === `Total 🪙 ${totalAntes + 1}`, 'coletar 1 moeda: o total mostra +1 (em jogo)');
+ok(mod.coletadas === 1 && totalNaTela() === `Saldo 🪙 ${totalAntes}`, 'coletar 1 moeda: o saldo não sobe até a fase ser concluída');
 el('btn-reiniciar-hud').disparar('click'); frames(3);
-ok(totalNaTela() === `Total 🪙 ${totalAntes}` && contadorNaTela() === '🪙 0/2',
-   'reiniciar: o total volta ao de antes e o contador zera');
-ok(mod.progresso.total === totalAntes, 'a moeda da tentativa anulada não foi para o total salvo');
+ok(totalNaTela() === `Saldo 🪙 ${totalAntes}` && contadorNaTela() === '🪙 0/2',
+   'reiniciar: o saldo volta ao de antes e o contador zera');
+ok(mod.progresso.saldo === totalAntes, 'a moeda da tentativa anulada não foi para o saldo salvo');
 
 console.log('--- 2) concluir confirma as moedas e a pontuação ---');
 mod.definirRota([mod.grade.obter(0, 0, 1), mod.grade.obter(0, 0, 2)]);
@@ -160,6 +160,31 @@ console.log('--- 8) meta de passos e estrelas pelo par ---');
   ok(mod.estado.concluido && mod.estado.passos === 26, `caminho com volta: 26 passos (passos=${mod.estado.passos})`);
   ok(estVolta.includes('(meta 20)') && estVolta.includes('⭐⭐☆'), `caminho com volta: 2 estrelas com meta 20 ("${estVolta}")`);
 }
+
+console.log('--- 8) loja de skins (🎨) ---');
+el('btn-skins').disparar('click');
+const loja = el('grade-skins');
+// o stub não esvazia `children` ao trocar o textContent: olha só os 6 botões da última abertura
+const botoes = () => loja.children.slice(-6);
+ok(el('painel-skins').classList.contains('visivel') && botoes().length === 6,
+   `a loja abre com as 6 aparências (${botoes().length} botões)`);
+ok(botoes()[0].className === 'skin-equipada', 'a skin inicial aparece como equipada');
+const saldoIni = mod.progresso.saldo;      // as fases anteriores já podem ter rendido moedas
+ok(botoes()[1].className === (saldoIni >= 50 ? 'skin-comprar' : 'skin-sem-saldo'), `a skin de 50 reflete o saldo atual (${saldoIni})`);
+// concluir uma fase de teste rende 60 moedas: dá para comprar a skin de 50 pela loja
+mod.progresso.concluir(99, { moedas: 60, passos: 1, tempo: 1, par: 1 });
+el('btn-skins').disparar('click');
+ok(botoes()[1].className === 'skin-comprar', 'com moedas suficientes, a skin de 50 fica à venda');
+botoes()[1].disparar('click');
+const saldoFinal = mod.progresso.saldo;
+ok(mod.progresso.possui('oceano') && mod.progresso.skinAtual === 'oceano' && saldoFinal === saldoIni + 60 - 50,
+   `comprar pela loja: a skin é salva, equipada e o saldo vai para ${saldoFinal}`);
+ok(el('total-moedas').textContent === `Saldo 🪙 ${saldoFinal}`,
+   'o HUD mostra o saldo depois da compra');
+ok(botoes()[1].className === 'skin-equipada' && el('saldo-skins').textContent === `Saldo 🪙 ${saldoFinal}`,
+   'a loja se atualiza: a skin comprada fica equipada e mostra o saldo');
+el('btn-fechar-skins').disparar('click');
+ok(!el('painel-skins').classList.contains('visivel'), 'fechar a loja esconde o painel');
 
 console.log(falhas === 0 ? '\n>>> FLUXO OK' : `\n>>> ${falhas} FALHA(S) NO FLUXO`);
 process.exit(falhas === 0 ? 0 : 1);

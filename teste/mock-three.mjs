@@ -45,7 +45,10 @@ class Material {
   constructor(p = {}) { Object.assign(this, p); this.userData = {}; }
   dispose() { this.__disposed = true; }
 }
-class MeshStandardMaterial extends Material {}
+class MeshStandardMaterial extends Material {
+  // cor e brilho próprio são objetos com set(), como no Three.js (a skin da bola os altera)
+  constructor(p = {}) { super(p); this.color = new Color(p.color ?? 0xffffff); this.emissive = new Color(p.emissive ?? 0); }
+}
 class MeshBasicMaterial extends Material {}
 class LineBasicMaterial extends Material {}
 
@@ -84,7 +87,7 @@ class DirectionalLight extends Light {
   }
 }
 
-class Color { constructor(c) { this.c = c; } copy(o) { this.c = o.c; return this; } }
+class Color { constructor(c) { this.c = c; } copy(o) { this.c = o.c; return this; } set(c) { this.c = c; return this; } }
 class RingGeometry { constructor(ri, ro, seg) { this.tipo = 'anel'; this.parametros = [ri, ro, seg]; } }
 
 class Raycaster {
@@ -117,12 +120,13 @@ class WebGLRenderer {
 }
 
 const PCFSoftShadowMap = 1;
+class CanvasTexture { constructor(canvas) { this.image = canvas; this.needsUpdate = false; } }
 
 export {
   Vector3, Vector2, Object3D, BoxGeometry, SphereGeometry, CylinderGeometry,
   Material, MeshStandardMaterial, MeshBasicMaterial,
   Mesh, Group, Camera, OrthographicCamera, PerspectiveCamera, Scene,
   Light, AmbientLight, DirectionalLight, Color, Raycaster, WebGLRenderer,
-  PCFSoftShadowMap,
+  PCFSoftShadowMap, CanvasTexture,
   EdgesGeometry, LineSegments, LineBasicMaterial, RingGeometry
 };
