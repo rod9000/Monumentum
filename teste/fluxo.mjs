@@ -67,7 +67,7 @@ mod.carregarNivel(iMoedas); frames(3);
 const totalAntes = mod.progresso.saldo;
 ok(totalNaTela() === `Saldo 🪙 ${totalAntes}`, `ao entrar na fase, o saldo mostra ${totalAntes}`);
 mod.definirRota([mod.grade.obter(0, 0, 1)]); esperarPasso(); frames(20);
-ok(mod.coletadas === 1 && totalNaTela() === `Saldo 🪙 ${totalAntes + 1}`, 'coletar 1 moeda: o saldo mostra +1 (em jogo)');
+ok(mod.coletadas === 1 && totalNaTela() === `Saldo 🪙 ${totalAntes}`, 'coletar 1 moeda: o saldo não sobe até a fase ser concluída');
 el('btn-reiniciar-hud').disparar('click'); frames(3);
 ok(totalNaTela() === `Saldo 🪙 ${totalAntes}` && contadorNaTela() === '🪙 0/2',
    'reiniciar: o saldo volta ao de antes e o contador zera');
@@ -179,7 +179,7 @@ botoes()[1].disparar('click');
 const saldoFinal = mod.progresso.saldo;
 ok(mod.progresso.possui('oceano') && mod.progresso.skinAtual === 'oceano' && saldoFinal === saldoIni + 60 - 50,
    `comprar pela loja: a skin é salva, equipada e o saldo vai para ${saldoFinal}`);
-ok(el('total-moedas').textContent === `Saldo 🪙 ${saldoFinal + (mod.estado.concluido ? 0 : mod.coletadas)}`,
+ok(el('total-moedas').textContent === `Saldo 🪙 ${saldoFinal}`,
    'o HUD mostra o saldo depois da compra');
 ok(botoes()[1].className === 'skin-equipada' && el('saldo-skins').textContent === `Saldo 🪙 ${saldoFinal}`,
    'a loja se atualiza: a skin comprada fica equipada e mostra o saldo');

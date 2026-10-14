@@ -5,6 +5,7 @@
    - persistência no navegador e migração de saves antigos. */
 import { criarProgresso } from '../src/progresso.js';
 import { SKINS, SKIN_PADRAO, PRECO_SKIN } from '../src/skins.js';
+import { PADROES, desenharPadrao } from '../src/padroes.js';
 
 let falhas = 0;
 const ok = (cond, msg) => { console.log((cond ? '  [ok] ' : '  [FALHA] ') + msg); if (!cond) falhas++; };
@@ -83,6 +84,34 @@ console.log('--- persistência e saves antigos ---');
   const arm = memoria({ 'diorama-progresso-v2': '{"total": 10, "gasto": 99, "fases": {}}' });
   const p = criarProgresso(arm);
   ok(p.saldo === 0, 'gasto maior que o total nunca deixa o saldo negativo');
+}
+
+console.log('--- padrões (desenho em canvas, sem navegador) ---');
+{
+  const hex = /^#[0-9a-f]{6}$/i;
+  ok(SKINS.every(s => PADROES.includes(s.padrao)), 'cada skin usa um padrão conhecido');
+  ok(SKINS.filter(s => s.padrao !== 'liso').every(s => hex.test(s.detalhe)), 'padrões têm cor de detalhe válida');
+  ok(new Set(SKINS.map(s => s.padrao)).size >= 4, 'as skins têm padrões diferentes entre si');
+
+  /** Contexto 2D falso: conta retângulos e círculos desenhados. */
+  const gravar = () => {
+    const c = { retangulos: 0, circulos: 0, fillStyle: null };
+    c.fillRect = () => { c.retangulos++; };
+    c.beginPath = () => {};
+    c.arc = () => { c.circulos++; };
+    c.fill = () => {};
+    return c;
+  };
+  const base = { cor: '#000000', detalhe: '#ffffff' };
+  const desenhar = padrao => { const c = gravar(); desenharPadrao(c, 512, 256, { ...base, padrao }); return c; };
+  const liso = desenhar('liso');
+  ok(liso.retangulos === 1 && liso.circulos === 0, 'liso: só o fundo');
+  ok(desenhar('faixas').retangulos === 5, 'faixas: fundo + 4 faixas');
+  ok(desenhar('gomos').retangulos === 5, 'gomos: fundo + 4 gomos');
+  ok(desenhar('xadrez').retangulos === 33, 'xadrez: fundo + 32 quadrados (metade do tabuleiro de 8x8)');
+  ok(desenhar('bolinhas').circulos === 64, 'bolinhas: 8x8 = 64 círculos');
+  ok(desenhar('padrao-inexistente').circulos === 0 && desenhar('padrao-inexistente').retangulos === 1,
+     'padrão desconhecido cai para a cor lisa');
 }
 
 console.log(falhas === 0 ? '\n>>> SKINS OK' : `\n>>> ${falhas} FALHA(S) EM SKINS`);

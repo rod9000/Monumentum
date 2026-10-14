@@ -39,10 +39,13 @@ O progresso é salvo no navegador (`localStorage`) — ao reabrir, você continu
 * **Moedas:** as moedas de uma tentativa só entram no total salvo quando a fase é
   **concluída**. Cair no vão, apertar ↺ ou sair da fase descarta as moedas da
   tentativa. Cada fase conta suas moedas uma vez (refazer não rende de novo).
-  O contador do topo mostra o **saldo**: as moedas disponíveis para gastar.
-* **Skins da bola (🎨):** o personagem pode ser trocado por 5 skins, cada uma custando
-  **50 🪙** do saldo (a *Laranja Clássica* inicial é grátis). Comprar já equipa a skin,
-  e a escolha fica salva no navegador. Os preços e as cores ficam em `src/skins.js`.
+  O contador do topo mostra o **saldo**: as moedas disponíveis para gastar. Ele só sobe
+  quando a fase é **concluída** (moedas da tentativa em andamento não entram nele).
+* **Skins da bola (🎨):** o personagem pode ser trocado por 5 skins com padrões (faixas,
+  bolinhas, gomos, xadrez), cada uma custando **50 🪙** do saldo (a *Laranja Clássica*
+  inicial é grátis). A loja mostra uma miniatura 3D de cada skin. Comprar já equipa a
+  skin, e a escolha fica salva no navegador. Preços, cores e padrões ficam em
+  `src/skins.js`; o desenho dos padrões, em `src/padroes.js`.
 * **Meta e estrelas (pontuação):** cada fase tem uma **meta**: o menor número de passos
   para pegar todas as moedas, calculado pelo próprio jogo (`src/par.js`). O contador 👣
   mostra os passos e a meta (ex.: `👣 12 · meta 20`). Cada passo para uma célula vizinha

@@ -120,12 +120,13 @@ class WebGLRenderer {
 }
 
 const PCFSoftShadowMap = 1;
+class CanvasTexture { constructor(canvas) { this.image = canvas; this.needsUpdate = false; } }
 
 export {
   Vector3, Vector2, Object3D, BoxGeometry, SphereGeometry, CylinderGeometry,
   Material, MeshStandardMaterial, MeshBasicMaterial,
   Mesh, Group, Camera, OrthographicCamera, PerspectiveCamera, Scene,
   Light, AmbientLight, DirectionalLight, Color, Raycaster, WebGLRenderer,
-  PCFSoftShadowMap,
+  PCFSoftShadowMap, CanvasTexture,
   EdgesGeometry, LineSegments, LineBasicMaterial, RingGeometry
 };
