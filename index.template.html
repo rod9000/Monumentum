@@ -166,7 +166,7 @@
   /* tela de conclusão: estatísticas da tentativa */
   #estatisticas { font-size: 13.5px; font-weight: 700; margin: -10px 0 16px; }
 
-  /* menu de fases (☰) */
+  /* menu de fases (▦) */
   #menu-fases {
     position: fixed; inset: 0; display: none; place-items: center; padding: 14px;
     background: rgba(2, 6, 15, .55); z-index: 15;
@@ -304,7 +304,7 @@
   body.toque .longo { display: none; }
   body.toque .curto { display: inline; }
   body.toque #btn-zoom-menos, body.toque #btn-zoom-mais { display: none; }   /* a pinça dá o zoom */
-  body.toque #btn-fase-anterior, body.toque #btn-fase-proxima,
+  body.toque #btn-fase-anterior, body.toque #btn-fase-proxima, body.toque #btn-menu,
   body.toque #btn-reiniciar-hud { min-width: 44px; padding: 8px 10px; }
   body.toque .linha { flex-wrap: wrap; justify-content: flex-start; }
   body.toque .acoes { flex-wrap: wrap; width: 100%; justify-content: flex-start; }
@@ -344,7 +344,6 @@
         <div id="total-moedas">Total 🪙 0/0</div>
       </div>
       <div class="acoes">
-        <button id="btn-menu" title="Escolher fase" aria-label="Escolher fase">☰</button>
         <div class="cartao contador-moedas">
           <span class="rotulo">Moedas</span>
           <span id="contador-moedas">🪙 0/0</span>
@@ -355,6 +354,7 @@
         </div>
         <div class="grupo-botoes">
           <button id="btn-fase-anterior" title="Fase anterior">◀</button>
+          <button id="btn-menu" title="Escolher fase" aria-label="Escolher fase">▦</button>
           <button id="btn-fase-proxima" title="Próxima fase">▶</button>
         </div>
         <div class="grupo-botoes">
@@ -409,7 +409,7 @@
     </div>
   </div>
 
-  <!-- Menu de fases (☰): grade com as fases abertas, concluídas e travadas -->
+  <!-- Menu de fases (▦): grade com as fases abertas, concluídas e travadas -->
   <div id="menu-fases" role="dialog" aria-modal="true" aria-labelledby="titulo-menu">
     <div class="cartao cartao-menu">
       <div class="cabecalho-menu">
