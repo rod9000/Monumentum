@@ -45,6 +45,13 @@ luzPreenchimento.position.set(-8, 5, -6);
 
 cena.add(luzAmbiente, luzSol, luzSol.target, luzPreenchimento);
 
+/** Troca o céu e a cor/força do sol pelo clima da fase (ver src/clima.js). */
+export function aplicarClima(clima) {
+  cena.background = new THREE.Color(clima.ceu);
+  luzSol.color = new THREE.Color(clima.sol);
+  luzSol.intensity = clima.intensidadeSol;
+}
+
 
 /* ---- MATERIAIS E GEOMETRIAS COMPARTILHADOS -------------------------------- */
 export const GEO_BLOCO = new THREE.BoxGeometry(1, 1, 1);

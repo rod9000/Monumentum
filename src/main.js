@@ -21,7 +21,8 @@ import { sortearMoedas } from './moedas.js';
 import { gerarFase } from './procedural.js';
 import { classificarGesto, fatorDePinca, direcaoDoMundo, maisProximoDoToque, ehDispositivoDeToque } from './toque.js';
 import { estado } from './estado.js';
-import { canvas, renderer, cena, camera, alvoCentro, enquadramento, luzSol, GEO_BLOCO, GEO_MOEDA, GEO_BORDAS, MATERIAL_BORDA, MATERIAL, materialMoedaBrilhante, destaque, atualizarCamera, atualizarEnquadramento } from './cena.js';
+import { canvas, renderer, cena, camera, alvoCentro, enquadramento, luzSol, GEO_BLOCO, GEO_MOEDA, GEO_BORDAS, MATERIAL_BORDA, MATERIAL, materialMoedaBrilhante, destaque, atualizarCamera, atualizarEnquadramento, aplicarClima } from './cena.js';
+import { climaDaFase } from './clima.js';
 import { avisar, popupMoeda, atualizarTextoFase, atualizarContadores, mostrarConclusao, esconderConclusao, atualizarBotaoSom } from './hud.js';
 import { montarMenu } from './menu.js';
 import { montarLoja } from './loja.js';
@@ -121,6 +122,7 @@ function carregarNivel(indice) {
   timersDicas = [];
 
   const dados = materializarNivel(indice);
+  aplicarClima(climaDaFase(indice));
 
   // limpa o nível anterior
   if (grupoNivel) {
