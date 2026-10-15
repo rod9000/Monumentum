@@ -1,7 +1,7 @@
 /* ============================================================================
-   MENU DE FASES — grade com todas as fases abertas: concluídas (com estrelas),
-   a atual e as que ainda estão travadas. Só monta a tela; quem decide o estado
-   de cada fase é o main.js (ele conhece o progresso).
+   MENU DE FASES — grade com os itens abertos: o desafio do dia, as fases
+   concluídas (com estrelas), a atual e as que ainda estão travadas. Só monta a
+   tela; quem decide o estado de cada item é o main/menus.js.
    ============================================================================ */
 import { textoEstrelas } from './progresso.js';
 
@@ -12,7 +12,7 @@ function mostrarFaixa({ botao, nome, rotulo }, faixa) {
   rotulo.textContent = faixa;
 }
 
-/** Monta o menu uma vez. `onEscolher(indice)` é chamado quando o jogador escolhe uma fase. */
+/** Monta o menu uma vez. `onEscolher(item)` é chamado quando o jogador escolhe um item. */
 export function montarMenu({ onEscolher }) {
   const painel = document.getElementById('menu-fases');
   const grade = document.getElementById('grade-fases');
@@ -24,14 +24,25 @@ export function montarMenu({ onEscolher }) {
   window.addEventListener('keydown', ev => { if (ev.key === 'Escape') fechar(); });
 
   return {
-    /** `itens`: [{ indice, nome, estado: 'concluida' | 'atual' | 'aberta' | 'travada', estrelas, dificuldade }] */
+    /** `itens`: [{ indice, nome, estado, estrelas?, dificuldade?, extra?, recompensa? }] */
     abrir(itens) {
       grade.textContent = '';
       botoes.clear();
       for (const it of itens) {
         const b = document.createElement('button');
-        b.className = `fase-${it.estado}`;
         b.title = it.nome;
+        if (it.extra) {                                   // desafio do dia
+          b.className = 'fase-desafio';
+          b.textContent = '📅';
+          b.disabled = false;
+          const s = document.createElement('small');
+          s.textContent = it.recompensa || 'Desafio do dia';
+          b.appendChild(s);
+          b.addEventListener('click', () => { fechar(); onEscolher(it); });
+          grade.appendChild(b);
+          continue;
+        }
+        b.className = `fase-${it.estado}`;
         b.textContent = `${it.indice + 1}`;
         if (it.estado === 'travada') b.disabled = true;
         if (it.estrelas) {
@@ -45,7 +56,7 @@ export function montarMenu({ onEscolher }) {
         const item = { botao: b, nome: it.nome, rotulo };
         botoes.set(it.indice, item);
         mostrarFaixa(item, it.dificuldade);
-        b.addEventListener('click', () => { fechar(); onEscolher(it.indice); });
+        b.addEventListener('click', () => { fechar(); onEscolher(it); });
         grade.appendChild(b);
       }
       painel.classList.add('visivel');

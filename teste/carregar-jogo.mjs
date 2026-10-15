@@ -34,8 +34,12 @@ export async function carregarJogo(exportar = []) {
         // acrescenta o `export` com o estado interno, só no arquivo de teste
         b.onLoad({ filter: /src[\\/]main\.js$/ }, async args => {
           const codigo = await fs.promises.readFile(args.path, 'utf8');
+          // nomes que o main.js já exporta (linha `export { ... }`) não podem ser repetidos
+          const jaExportados = new Set([...codigo.matchAll(/^export\s*\{([^}]*)\}/gm)]
+            .flatMap(m => m[1].split(',').map(s => s.trim().split(/\s+as\s+/).pop()).filter(Boolean)));
+          const extras = exportar.filter(n => !jaExportados.has(n));
           return {
-            contents: codigo + `\nexport { ${exportar.join(', ')} };\n`,
+            contents: codigo + (extras.length ? `\nexport { ${extras.join(', ')} };\n` : ''),
             loader: 'js',
             resolveDir: path.dirname(args.path)
           };

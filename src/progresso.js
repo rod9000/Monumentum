@@ -1,5 +1,6 @@
 /* ============================================================================
-   PROGRESSO SALVO NO NAVEGADOR — moedas, fases concluídas e recordes.
+   PROGRESSO SALVO NO NAVEGADOR — moedas, fases concluídas, recordes, quedas,
+   usos das mecânicas, conquistas, desafios do dia e tutorial.
 
    Regras:
    - As moedas de uma tentativa só entram no total ao CONCLUIR a fase. Morrer
@@ -15,19 +16,31 @@
 
 import { estrelasDoPar } from './par.js';
 import { SKIN_PADRAO } from './skins.js';
+import { verificarConquistas } from './conquistas.js';
 
 const CHAVE = 'diorama-progresso-v2';
 
 /** Completa um progresso lido do navegador (ou migrado): campos ausentes viram o padrão. */
 function normalizar(d) {
-  const skins = Array.isArray(d.skins) ? d.skins.filter(s => typeof s === 'string') : [];
+  const fases = d?.fases && typeof d.fases === 'object' ? d.fases : {};
+  const quedas = d?.quedas && typeof d.quedas === 'object' ? d.quedas : {};
+  const usos = d?.usos && typeof d.usos === 'object' ? d.usos : {};
+  const diarios = d?.diarios && typeof d.diarios === 'object' ? d.diarios : {};
+  const skins = Array.isArray(d?.skins) ? d.skins.filter(s => typeof s === 'string') : [];
   const possuidas = [...new Set([SKIN_PADRAO, ...skins])];
+  const total = Math.max(0, Math.floor(Number(d?.total) || 0));
+  const gasto = Math.min(Math.max(0, Math.floor(Number(d?.gasto) || 0)), total);
   return {
-    total: Math.max(0, Math.floor(Number(d.total) || 0)),
-    gasto: Math.max(0, Math.floor(Number(d.gasto) || 0)),
-    fases: d.fases && typeof d.fases === 'object' ? d.fases : {},
+    total,
+    gasto,
+    fases,
+    quedas,
+    usos,
+    diarios,
+    conquistas: Array.isArray(d?.conquistas) ? d.conquistas.filter(s => typeof s === 'string') : [],
+    tutorial: d?.tutorial && typeof d.tutorial === 'object' ? d.tutorial : {},
     skins: possuidas,
-    skinAtual: possuidas.includes(d.skinAtual) ? d.skinAtual : SKIN_PADRAO
+    skinAtual: possuidas.includes(d?.skinAtual) ? d.skinAtual : SKIN_PADRAO
   };
 }
 
@@ -36,9 +49,17 @@ export function textoEstrelas(n) {
   return '⭐'.repeat(n) + '☆'.repeat(Math.max(0, 3 - n));
 }
 
-/** Cria o progresso. `armazenamento` pode ser trocado nos testes (qualquer objeto com getItem/setItem). */
-export function criarProgresso(armazenamento = globalThis.localStorage) {
+/**
+ * Cria o progresso. `armazenamento` pode ser trocado nos testes (qualquer objeto
+ * com getItem/setItem) e `agora` devolve a data de hoje (String 'aaaa-mm-dd')
+ * para as regras dos desafios diários.
+ */
+export function criarProgresso(armazenamento = globalThis.localStorage, agora = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}) {
   let dados = carregar();
+  const aoConquista = [];
 
   function carregar() {
     let bruto = null;
@@ -74,6 +95,18 @@ export function criarProgresso(armazenamento = globalThis.localStorage) {
     return chaves.length ? Math.max(...chaves) : -1;
   };
 
+  /** Registra uma conquista nova (devolve a lista das que passaram a valer). */
+  function conceder(ids) {
+    const novas = [];
+    for (const id of ids) {
+      if (dados.conquistas.includes(id)) continue;
+      dados.conquistas.push(id);
+      novas.push(id);
+    }
+    if (novas.length) { salvar(); aoConquista.forEach(f => f(novas)); }
+    return novas;
+  }
+
   return {
     get total() { return dados.total; },
     /** Moedas disponíveis para gastar: o total ganho menos o que já foi usado em skins. */
@@ -105,8 +138,11 @@ export function criarProgresso(armazenamento = globalThis.localStorage) {
         tempo: tempoRecorde,
         estrelas: Math.max(rec ? rec.estrelas || 0 : 0, estrelas)
       };
+      // uma fase concluída sem quedas contabilizadas não rende conquista "sem cair" jogada
+      if (dados.quedas[i] === undefined && i >= 0) dados.quedas[i] = dados.quedas[i] ?? 0;
       salvar();
-      return {
+
+      const r = {
         ganho,
         estrelas,
         par,
@@ -116,6 +152,8 @@ export function criarProgresso(armazenamento = globalThis.localStorage) {
         novoRecorde: recordeAnterior !== null && passos < recordeAnterior,
         primeira: recordeAnterior === null
       };
+      if (i >= 0) r.novasConquistas = conceder(verificarConquistas(estadoParaConquistas(i)));
+      return r;
     },
 
     /** Compra uma skin com o saldo e já a equipa. Devolve false se já a tem ou falta moeda. */
@@ -125,6 +163,7 @@ export function criarProgresso(armazenamento = globalThis.localStorage) {
       dados.skins.push(id);
       dados.skinAtual = id;
       salvar();
+      conceder(verificarConquistas(estadoParaConquistas(-1)));
       return true;
     },
 
@@ -134,6 +173,103 @@ export function criarProgresso(armazenamento = globalThis.localStorage) {
       dados.skinAtual = id;
       salvar();
       return true;
-    }
+    },
+
+    /* ---- quedas e usos das mecânicas (conquistas) ---- */
+
+    /** Conta uma queda do personagem em uma fase (ou -1: desafio do dia). */
+    contarQueda(indice, n = 1) {
+      if (indice === null || indice === undefined || indice < 0) return;
+      dados.quedas[indice] = (Number(dados.quedas[indice]) || 0) + n;
+      salvar();
+    },
+
+    quedas: indice => Number(dados.quedas[indice]) || 0,
+
+    /** Marca que a mecânica `nome` foi usada na fase `indice` ('pulo', 'elevador',
+        'ponte', 'portal', 'girar'...). */
+    registrarUso(indice, nome) {
+      if (indice === null || indice === undefined || indice < 0) return;
+      const m = dados.usos[indice] && typeof dados.usos[indice] === 'object' ? dados.usos[indice] : {};
+      m[nome] = true;
+      dados.usos[indice] = m;
+      salvar();
+    },
+
+    usos: indice => dados.usos[indice] || {},
+
+    /* ---- desafio do dia ---- */
+
+    /** Registra a conclusão do desafio do dia: paga a recompensa uma única vez. */
+    concluirDesafioDoDia(dataISO, recompensa) {
+      dados.diarios[dataISO] = true;
+      dados.total += recompensa;
+      salvar();
+      const novas = conceder(verificarConquistas(estadoParaConquistas(), -1));
+      return { ganho: recompensa, novas };
+    },
+
+    /** Data de hoje ('aaaa-mm-dd', fuso local). */
+    hoje: agora,
+
+    /** Dias seguidos de desafio concluído (hoje entrando na conta). */
+    sequenciaDoDia(dataISO) {
+      const dias = Object.keys(dados.diarios).filter(Boolean);
+      let seg = 0;
+      const d = new Date(`${dataISO}T00:00:00`);
+      for (;;) {
+        const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (!dias.includes(k)) break;
+        seg++;
+        d.setDate(d.getDate() - 1);
+      }
+      return seg;
+    },
+
+    /* ---- conquistas ---- */
+
+    conquistas: () => [...dados.conquistas],
+    conquista: id => dados.conquistas.includes(id),
+
+    /** Registra um "ouvinte" avisado quando uma conquista é desbloqueada. */
+    aoDesbloquearConquista(f) { aoConquista.push(f); },
+
+    /* ---- tutorial ---- */
+
+    /** Passos do tutorial já mostrados por fase ([0,1] = em andamento). */
+    tutorialVisto: indice => dados.tutorial[indice] ?? 0,
+    /** Marca o tutorial da fase como visto (0 = todo). */
+    marcarTutorialVisto(indice, passos) {
+      dados.tutorial[indice] = passos;
+      salvar();
+    },
+
+    estadoParaConquistas
   };
+
+  /** Foto do estado usada pelas regras das conquistas. */
+  function estadoParaConquistas(indiceConcluida = -1) {
+    return {
+      fasesConcluidas: Object.keys(dados.fases).length,
+      total: dados.total,      quedas: { ...dados.quedas },
+      usos: { ...dados.usos },
+      tresEstrelas: Object.values(dados.fases).filter(f => (f.estrelas || 0) >= 3).length,
+      sequenciaDoDia: sequenciaDoDia(),
+      skinsCompradas: dados.skins.length - 1,
+      conquistas: [...dados.conquistas]
+    };
+  }
+
+  /** Dias seguidos de desafio concluído, contando com a data de hoje. */
+  function sequenciaDoDia() {
+    let seg = 0;
+    const d = new Date(`${agora()}T00:00:00`);
+    for (;;) {
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!dados.diarios[k]) break;
+      seg++;
+      d.setDate(d.getDate() - 1);
+    }
+    return seg;
+  }
 }

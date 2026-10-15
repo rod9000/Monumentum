@@ -17,5 +17,6 @@ export const CONFIG = {
   velocidadeElevador: 1.15,      // células por segundo do elevador
   esperaElevador: 1.1,           // segundos parado em cada ponta (tempo de embarcar)
   alturaSalto: 0.9,              // altura do arco do pulo (marcador de pulo)
-  pontesSempreAtivas: false      // true = ignora o alinhamento da câmera (só para testes de fluxo)
+  pontesSempreAtivas: false,     // true = ignora o alinhamento da câmera (só para testes de fluxo)
+  diarioRecompensa: 5            // moedas do desafio do dia (pagas uma vez por dia)
 };

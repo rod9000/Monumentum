@@ -51,6 +51,10 @@ export const GEO_BLOCO = new THREE.BoxGeometry(1, 1, 1);
 export const GEO_MOEDA = new THREE.CylinderGeometry(0.30, 0.30, 0.07, 28);
 GEO_MOEDA.rotateX(Math.PI / 2);        // moeda "em pé", girando no eixo Y
 
+export const GEO_PLACA = new THREE.BoxGeometry(0.9, 0.06, 0.9); // placa fina (ponte de câmera)
+export const GEO_MARCADOR = new THREE.BoxGeometry(0.46, 0.04, 0.46);      // marcador de pulo: quadrado...
+export const GEO_ANEL_MARCADOR = new THREE.RingGeometry(0.1, 0.16, 24);   // ...com um círculo dentro
+
 // BORDA de cada bloco: arestas do cubo (LineSegments é filho do tile, então
 // não interfere no raycast, que não é recursivo)
 export const GEO_BORDAS = new THREE.EdgesGeometry(GEO_BLOCO);
