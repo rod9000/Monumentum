@@ -13,7 +13,7 @@ import { som } from './sessao.js';
 import { avisar } from './hud.js';
 import { tween } from './tweens.js';
 import { grade, tilesRaycast, carregarPorDados, carregarNivel, dicaGiro, contarMoeda, avisarEventoTutorial } from './fase.js';
-import { coletarMoeda } from './regras.js';
+import { coletarMoeda, concluirFase } from './regras.js';
 import { personagem, posicaoNoBloco, girarPersonagemPara } from './personagem.js';
 import { ultimaTentativa } from './sessao.js';
 
@@ -57,7 +57,7 @@ function alcancaAPe(de, celula) {
   while (fila.length) {
     const atual = fila.shift();
     if (chave(atual.x, atual.y, atual.z) === alvo) return true;
-    for (const v of grade().vizinhos(atual)) {
+    for (const v of grade.vizinhos(atual)) {
       const k = chave(v.x, v.y, v.z);
       if (!ant.has(k)) { ant.add(k); fila.push(v); }
     }
@@ -69,14 +69,14 @@ function alcancaAPe(de, celula) {
     (um vizinho do elevador que dá para alcançar a pé). */
 function celulaDeEmbarque(destino) {
   const atual = estado.blocoAtual;
-  for (const e of grade().lista) {
+  for (const e of grade.lista) {
     if (!e.elev) continue;
     const ladoLa = { x: e.elev.para.x, y: e.elev.para.y, z: e.elev.para.z };
     // o destino tem de ser alcançável a pé do "lado de lá"...
     if (!alcancaAPe(ladoLa, destino)) continue;
     // ...e nós temos de estar do "lado de cá"
     if (alcancaAPe(ladoLa, atual)) continue;
-    const celula = grade().vizinhos(e).find(v => alcancaAPe(atual, v));
+    const celula = grade.vizinhos(e).find(v => alcancaAPe(atual, v));
     if (celula) return celula;
   }
   return null;
@@ -86,9 +86,9 @@ function celulaDeEmbarque(destino) {
 function proximoPasso() {
   const destino = estado.fila.shift();
   if (!destino) return;
-  if (destino.tipo === 'ponte' && !grade().ponteAtiva(destino.ponte)) {
+  if (destino.tipo === 'ponte' && !grade.ponteAtiva(destino.ponte)) {
     // a câmera está girando para o ângulo certo: espera o giro assentar, em vez de cair
-    if (grade().quadrante === null && quadranteAlvo(estado.giroAlvo) === destino.ponte.angulo) {
+    if (grade.quadrante === null && quadranteAlvo(estado.giroAlvo) === destino.ponte.angulo) {
       estado.aguardandoPonte = { destino, ponte: destino.ponte, t: 0 };
       return;
     }
@@ -106,7 +106,7 @@ function proximoPasso() {
 function pularSobre(ix, iz) {
   if (estado.passo || estado.caindo) return;
   const de = estado.blocoAtual;
-  const destino = alvoDoPulo(grade(), de, ix, iz);
+  const destino = alvoDoPulo(grade, de, ix, iz);
   if (!destino) { cairNoVao(); return; }
   estado.fila = [];
   estado.aguardandoPonte = null;
@@ -123,9 +123,9 @@ export function andarUmPasso(ix, iz) {
   if (estado.caindo || estado.concluido || viajandoDeElevador()) return;
   const de = estado.blocoAtual;
   for (const dy of [0, 1, -1]) {
-    const alvo = grade().obter(de.x + ix, de.y + dy, de.z + iz);
+    const alvo = grade.obter(de.x + ix, de.y + dy, de.z + iz);
     if (alvo && alvo.tipo === 'ponte') { definirRota([alvo]); return; }
-    if (grade().podeMover(de, alvo)) { definirRota([alvo]); return; }
+    if (grade.podeMover(de, alvo)) { definirRota([alvo]); return; }
   }
 }
 
@@ -134,19 +134,19 @@ const PRAZO_SETA_MS = 400;
     seguidas na mesma direção pulam até o próximo bloco de pulo. */
 export function pressionarSeta(ix, iz) {
   const noMarcador = !estado.passo && estado.blocoAtual.tipo === 'pulo';
-  const frente = noMarcador ? grade().obter(estado.blocoAtual.x + ix, estado.blocoAtual.y, estado.blocoAtual.z + iz) : null;
+  const frente = noMarcador ? grade.obter(estado.blocoAtual.x + ix, estado.blocoAtual.y, estado.blocoAtual.z + iz) : null;
   const pend = estado.setaPulo;
   if (pend) {                                           // havia uma seta esperando
     clearTimeout(pend.timer);
     estado.setaPulo = null;
     if (noMarcador && pend.ix === ix && pend.iz === iz && performance.now() - pend.t < PRAZO_SETA_MS) {
-      if (grade().andavel(frente)) andarUmPasso(ix, iz); else pularSobre(ix, iz);
+      if (grade.andavel(frente)) andarUmPasso(ix, iz); else pularSobre(ix, iz);
       return;
     }
     andarUmPasso(pend.ix, pend.iz);
   }
   // no bloco de pulo, só espera a 2ª seta se não há chão à frente (senão é um passo comum)
-  if (noMarcador && !grade().andavel(frente)) {
+  if (noMarcador && !grade.andavel(frente)) {
     const geracao = estado.geracao;
     const timer = setTimeout(() => {
       if (geracao !== estado.geracao) return;           // a fase mudou nesse meio-tempo
@@ -231,12 +231,12 @@ export function atualizarPontePendente(dt) {
   const p = estado.aguardandoPonte;
   if (!p) return;
   p.t += dt;
-  if (grade().ponteAtiva(p.ponte)) {
+  if (grade.ponteAtiva(p.ponte)) {
     estado.aguardandoPonte = null;
     som.tocar('ponte');
     estado.fila.unshift(p.destino);
     proximoPasso();
-  } else if (grade().quadrante !== null || quadranteAlvo(estado.giroAlvo) !== p.ponte.angulo || p.t >= PRAZO_PONTE) {
+  } else if (grade.quadrante !== null || quadranteAlvo(estado.giroAlvo) !== p.ponte.angulo || p.t >= PRAZO_PONTE) {
     estado.aguardandoPonte = null;
     cairNoVao(p.ponte);
   }
@@ -256,7 +256,6 @@ export function atualizarPasso(dt) {
     personagem.position.copy(p.para);
     estado.passos++;                    // pontuação: cada passo (ou pulo) conta
     if (!p.pulo) som.tocar('passo');
-    contarMoeda();
     avisarEventoTutorial('andou');
     aoEntrarNoBloco(p.bloco);
     if (!estado.concluido) proximoPasso();
@@ -270,14 +269,16 @@ export function atualizarPasso(dt) {
 
 /** Chegou em um bloco: era moeda? então coleta. */
 function aoEntrarNoBloco(b) {
-  if (b.tipo === 'moeda') coletarMoeda(b);
+  if (b.tipo !== 'moeda') return;
+  contarMoeda();
+  if (coletarMoeda(b)) concluirFase();      // pegou a última: fase concluída
 }
 
 /* ============================================================================
    ELEVADORES (atualização por quadro)
    ============================================================================ */
 export function atualizarElevadores(dt) {
-  for (const e of grade().lista) {
+  for (const e of grade.lista) {
     if (!e.elev) continue;
     const ev = e.elev;
     const estavaParado = elevadorParado(e);
@@ -298,7 +299,7 @@ export function atualizarElevadores(dt) {
     else if (ev.t <= 0) { ev.t = 0; ev.dir = 1; ev.pausaAtual = ev.espera; ev.avisouParada = false; }
 
     const p = ev.inicio;
-    moverBloco(grade(), e,
+    moverBloco(grade, e,
       p.x + (ev.para.x - p.x) * ev.t,
       p.y + (ev.para.y - p.y) * ev.t,
       p.z + (ev.para.z - p.z) * ev.t);

@@ -251,7 +251,7 @@ function carregarFase(dados, indice) {
   CONFIG.zoom = 1;               // cada fase começa enquadrada por completo
   totalMoedas = grade.lista.filter(b => b.tipo === 'moeda').length;
   coletadas = 0;
-  atualizarTextoFase(nomeCurto(indice), indice, faixaDaFase(indice));
+  atualizarTextoFase(indice < 0 ? dados.nome : nomeCurto(indice), indice, faixaDaFase(indice));
   agendarFaixaAtual();
   atualizarMostrador();
 
@@ -369,6 +369,7 @@ export function calcularFaixa(indice) {
 /** Faixa da fase atual, calculada logo depois que ela aparece. */
 function agendarFaixaAtual() {
   const indice = indiceNivel;
+  if (indice < 0) return;                        // desafio do dia / fase do editor: sem nota
   setTimeout(() => {
     if (indice !== indiceNivel) return;          // a fase mudou nesse meio-tempo
     atualizarTextoFase(nomeCurto(indice), indice, calcularFaixa(indice));

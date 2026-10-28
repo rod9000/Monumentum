@@ -42,7 +42,7 @@ export function coletarMoeda(b) {
 
 /** Total de moedas da fase (a grade já sem as coletadas). */
 function totalDeMoedas() {
-  return grade().lista.filter(b => b.tipo === 'moeda').length + moedasDaTentativa();
+  return grade.lista.filter(b => b.tipo === 'moeda').length + moedasDaTentativa();
 }
 
 /** Linha da pontuação: passos, recorde, tempo, estrelas e moedas ganhas. */
@@ -104,8 +104,7 @@ function concluirDesafio(tempo, par, moedas) {
 
 /** Nome da próxima fase (para o texto da tela de conclusão). */
 function proximoNome() {
-  const i = indiceNivel + 1;
-  return progresso.concluida(i) ? 'a fase seguinte' : nomeDaProximaFase(i);
+  return nomeDaProximaFase(indiceNivel + 1);
 }
 
 import { nomeCurto as nomeDaProximaFase } from './fase.js';

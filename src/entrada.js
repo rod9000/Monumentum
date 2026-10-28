@@ -40,26 +40,26 @@ export function iniciarEntradas() {
     if (recusarClique(b)) return;
 
     if (CONFIG.permitirCliqueDistante) {
-      let caminho = grade().rota(estado.blocoAtual, b);
+      let caminho = grade.rota(estado.blocoAtual, b);
       // não dá a pé? talvez só dê de elevador: manda para a célula de embarque
       if ((!caminho || !caminho.length) && !viajandoDeElevador()) {
         const embarque = celulaDeEmbarque(b);
         if (embarque) {
           avisar('🛗 Só dá de elevador — indo para a plataforma');
-          caminho = grade().rota(estado.blocoAtual, embarque);
+          caminho = grade.rota(estado.blocoAtual, embarque);
         }
       }
       if (!caminho || !caminho.length) {
         // a ponte até lá está fora do alinhamento: vai até a borda e cai se tentar atravessar
-        const angulo = grade().anguloPonteBloqueante(estado.blocoAtual, b);
+        const angulo = grade.anguloPonteBloqueante(estado.blocoAtual, b);
         if (angulo == null) { avisar('Não existe caminho até lá 🚫'); return; }
         avisar(`🔭 Ponte fora do alinhamento: ${dicaGiro(angulo)} ou cai no vão`, 3500);
-        caminho = grade().rotaSobPontes(estado.blocoAtual, b);
+        caminho = grade.rotaSobPontes(estado.blocoAtual, b);
       }
       avisarEventoTutorial('andou');
       definirRota(caminho);
     } else {
-      if (!grade().podeMover(estado.blocoAtual, b)) { avisar('Clique em um bloco ao lado 👆'); return; }
+      if (!grade.podeMover(estado.blocoAtual, b)) { avisar('Clique em um bloco ao lado 👆'); return; }
       avisarEventoTutorial('andou');
       definirRota([b]);
     }
@@ -69,7 +69,7 @@ export function iniciarEntradas() {
   canvas.addEventListener('pointermove', ev => {
     if (ev.pointerType === 'touch') return;          // no toque, o destaque é o do toque (abaixo)
     const b = blocoSobOCursor(ev, canvas);
-    if (b && grade().podeMover(estado.blocoAtual, b)) {
+    if (b && grade.podeMover(estado.blocoAtual, b)) {
       destaque.visible = true;
       destaque.position.set(b.x, b.y, b.z);
       canvas.style.cursor = 'pointer';
@@ -92,7 +92,7 @@ export function iniciarEntradas() {
     if (ponteirosToque.size === 1) {
       gestoToque = { x0: ev.clientX, y0: ev.clientY, t0: performance.now(), dedos: 1, distIni: 0, distAnt: 0 };
       const b = blocoNoToque(ev);            // destaque ao tocar (no celular não há hover)
-      destaque.visible = !!(b && grade().podeMover(estado.blocoAtual, b));
+      destaque.visible = !!(b && grade.podeMover(estado.blocoAtual, b));
       if (destaque.visible) destaque.position.set(b.x, b.y, b.z);
     } else if (ponteirosToque.size === 2) {
       const [a, c] = [...ponteirosToque.values()];
@@ -143,7 +143,7 @@ export function iniciarEntradas() {
     const r = canvas.getBoundingClientRect();
     const candidatos = [];
     const v = camera.position.clone();
-    for (const m of tilesRaycast()) {
+    for (const m of tilesRaycast) {
       if (!m.userData.bloco) continue;
       v.copy(m.position).project(camera);
       candidatos.push({
@@ -158,12 +158,12 @@ export function iniciarEntradas() {
   /** Célula de embarque (vizinho do elevador alcançável a pé). */
   function celulaDeEmbarque(destino) {
     const atual = estado.blocoAtual;
-    for (const e of grade().lista) {
+    for (const e of grade.lista) {
       if (!e.elev) continue;
       const ladoLa = { x: e.elev.para.x, y: e.elev.para.y, z: e.elev.para.z };
       if (!alcancaAPe(ladoLa, destino)) continue;
       if (alcancaAPe(ladoLa, atual)) continue;
-      const celula = grade().vizinhos(e).find(v => alcancaAPe(atual, v));
+      const celula = grade.vizinhos(e).find(v => alcancaAPe(atual, v));
       if (celula) return celula;
     }
     return null;
@@ -176,10 +176,10 @@ export function iniciarEntradas() {
     while (fila.length) {
       const atual = fila.shift();
       if (atual.x + '|' + atual.y + '|' + atual.z === alvo) return true;
-      for (const v of grade().vizinhos(atual)) {
+      for (const v of grade.vizinhos(atual)) {
         const k = v.x + '|' + v.y + '|' + v.z;
-        if (visitidos.has(k)) continue;
-        visitidos.add(k);
+        if (visitados.has(k)) continue;
+        visitados.add(k);
         fila.push(v);
       }
     }
@@ -237,7 +237,7 @@ export function iniciarEntradas() {
   document.getElementById('btn-zoom-mais')?.addEventListener('click', () => ajustarZoom(1.2));
 
   // navegação livre entre fases (botões ◀ ▶ do HUD)
-  const faseAlvo = () => (estado.diario ? progressoIndice().maiorConcluida() + 1 : indiceNivel());
+  const faseAlvo = () => (estado.diario ? progressoIndice.maiorConcluida() + 1 : indiceNivel);
   const mostrarFase = () => avisar(`Fase ${faseAlvo() + 1}`);
 
   document.getElementById('btn-fase-anterior')?.addEventListener('click', () => {
@@ -270,7 +270,7 @@ export function iniciarEntradas() {
 /** Índice da fase em jogo (para os botões ◀ ▶). No desafio do dia volta às
     fases a partir da primeira fase ainda não concluída. */
 function indiceAtual() {
-  return progressoIndice().maiorConcluida() + 1;
+  return progressoIndice.maiorConcluida() + 1;
 }
 
 import { indiceNivel } from './fase.js';

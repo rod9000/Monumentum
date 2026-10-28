@@ -12,7 +12,7 @@ import { progresso, ultimaTentativa, informarIndice } from './sessao.js';
 import { dataAtual } from './fase.js';
 import { avisar } from './hud.js';
 import { NIVEIS } from './dados/niveis.js';
-import { nomeCurto, indiceNivel, carregarNivel, carregarPorDados, faixaDaFase, completarFaixasDoMenu } from './fase.js';
+import { nomeCurto, indiceNivel, atualizarMostrador, carregarNivel, carregarPorDados, faixaDaFase, completarFaixasDoMenu } from './fase.js';
 import { RECOMPENSA_DIARIA, desafioDoDia } from './diario.js';
 import { CONQUISTAS } from './conquistas.js';
 import { aplicarSkin } from './personagem.js';
@@ -60,6 +60,7 @@ function escolherSkin(id) {
     notificar(`Faltam ${s.preco - progresso.saldo} 🪙 para ${s.nome}`);
   }
   aplicarSkin(progresso.skinAtual);
+  atualizarMostrador();                    // saldo do HUD depois da compra
   loja.abrir(itensLoja(), progresso.saldo);
 }
 
@@ -164,8 +165,6 @@ export function ligarBotoes() {
   el('btn-conquistas')?.addEventListener('click', mostrarConquistas);
   el('btn-diario')?.addEventListener('click', jogarDesafioDoDia);
   el('btn-tutorial')?.addEventListener('click', () => reiniciarTutorial(progresso));
-  el('btn-reiniciar-hud')?.addEventListener('click', () => import('./regras.js').then(m => m.reiniciar()));
-  el('btn-proxima')?.addEventListener('click', () => import('./regras.js').then(m => m.proximaFase()));
 }
 
 /** Painel do tutorial: criado pelo main.js e guardado para as fases. */

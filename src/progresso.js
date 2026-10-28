@@ -209,6 +209,9 @@ export function criarProgresso(armazenamento = globalThis.localStorage, agora = 
       return { ganho: recompensa, novas };
     },
 
+    /** A recompensa do desafio desse dia já foi coletada? */
+    recompensaDoDia: dataISO => !!dados.diarios[dataISO],
+
     /** Data de hoje ('aaaa-mm-dd', fuso local). */
     hoje: agora,
 

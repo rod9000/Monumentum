@@ -115,9 +115,9 @@ el('btn-menu').disparar('click');
 const grade = el('grade-fases');
 ok(el('menu-fases').classList.contains('visivel') && grade.children.length >= 3,
    `o menu abre com as fases (${grade.children.length} botões)`);
-const iConcluida = grade.children[iMoedas];
+const iConcluida = grade.children[iMoedas + 1];     // o 1º botão é o desafio do dia
 ok(iConcluida && iConcluida.className === 'fase-concluida', 'fase concluída aparece marcada no menu');
-grade.children[0].disparar('click');
+grade.children[1].disparar('click');
 ok(!el('menu-fases').classList.contains('visivel') && mod.indiceNivel === 0,
    'escolher uma fase no menu fecha o menu e carrega a fase');
 mod.carregarNivel(0); frames(3);

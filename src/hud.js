@@ -21,7 +21,8 @@ export function avisar(texto, ms = TOQUE ? 2500 : 1700) {
 /** Nome da fase com o número e a faixa de dificuldade: "O Salão  ·  2/∞  ·  médio". */
 export function atualizarTextoFase(nome, indice, faixa = null) {
   const dificuldade = faixa ? `  ·  ${faixa}` : '';
-  document.getElementById('nome-fase').textContent = `${nome}  ·  ${indice + 1}/∞${dificuldade}`;
+  const numero = indice >= 0 ? `  ·  ${indice + 1}/∞` : '';   // desafio do dia não tem número
+  document.getElementById('nome-fase').textContent = `${nome}${numero}${dificuldade}`;
 }
 
 /** Contadores do topo: moedas desta fase, saldo (só sobe quando a fase é concluída) e passos. */

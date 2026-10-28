@@ -87,7 +87,7 @@ class DirectionalLight extends Light {
   }
 }
 
-class Color { constructor(c) { this.c = c; } copy(o) { this.c = o.c; return this; } set(c) { this.c = c; return this; } }
+class Color { constructor(c) { this.c = c; } copy(o) { this.c = o.c; return this; } set(c) { this.c = c; return this; } getHex() { return this.c; } }
 class RingGeometry { constructor(ri, ro, seg) { this.tipo = 'anel'; this.parametros = [ri, ro, seg]; } }
 
 class Raycaster {

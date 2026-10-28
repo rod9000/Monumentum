@@ -16,11 +16,11 @@ import { NIVEIS } from './dados/niveis.js';
 import { Grade, quadranteAssentado, TIPOS_ANDAVEIS, alcancaveis } from './grade.js';
 import { clonarBloco, iniciarElevador } from './elevadores.js';
 import { sortearMoedas } from './moedas.js';
-import { canvas, renderer, cena, camera } from './cena.js';
+import { canvas, renderer, cena, camera, atualizarCamera, alvoCentro } from './cena.js';
 import { estado } from './estado.js';
 import { avisar, atualizarBotaoSom } from './hud.js';
 import { som, progresso, TOQUE, informarIndice, ultimaTentativa } from './sessao.js';
-import { grade, tilesRaycast, indiceNivel, carregarNivel, carregarPorDados, atualizarPontes, atualizarMoedas, definirPainelTutorial, avisarEventoTutorial } from './fase.js';
+import { grade, tilesRaycast, indiceNivel, coletadas, totalMoedas,carregarNivel, carregarPorDados, atualizarPontes, atualizarMoedas, definirPainelTutorial, avisarEventoTutorial } from './fase.js';
 import { atualizarElevadores, atualizarPasso, atualizarPontePendente } from './movimento.js';
 import { atualizarTweens } from './tweens.js';
 import { aplicarSkin } from './personagem.js';
@@ -30,9 +30,9 @@ import { CONQUISTAS } from './conquistas.js';
 import { atualizarRotacaoPersonagem } from './personagem.js';
 
 // símbolos que os testes leem pelo escopo do main (via teste/carregar-jogo.mjs)
-export { grade, estado, CONFIG, NIVEIS, indiceNivel, carregarNivel, pressionarSeta, definirRota, personagemMain, camera, Grade, sortearMoedas, iniciarElevador, girar, canvas };
+export { alvoCentro, grade, coletadas, totalMoedas, estado, CONFIG, NIVEIS, indiceNivel, carregarNivel, pressionarSeta, definirRota, personagem, personagemMain, camera, Grade, sortearMoedas, iniciarElevador, girar, canvas };
 
-import { personagem as personagemMain } from './personagem.js';
+import { personagem, personagem as personagemMain } from './personagem.js';
 import { pressionarSeta, definirRota } from './movimento.js';
 import { girar } from './controle-camera.js';
 
@@ -136,7 +136,8 @@ function animar(agora) {
   const tempo = agora / 1000;
   ultimo = agora;
 
-  grade().quadrante = quadranteAssentado(estado.giroAtual, estado.giroAlvo);
+  atualizarCamera(dt);
+  grade.quadrante = quadranteAssentado(estado.giroAtual, estado.giroAlvo);
   atualizarPontes();
   atualizarElevadores(dt);
   atualizarPasso(dt);
@@ -156,7 +157,7 @@ if (typeof location !== 'undefined' && location.search.includes('debug')) {
   window.__DIORAMA_DEBUG__ = {
     estado, CONFIG, progresso, som,
     indice: () => indiceNivel,
-    grade,
+    grade: () => grade,
     /** posição do mundo -> pixel da tela (para os testes de toque) */
     projetar: (x, y, z) => {
       const v = new THREE.Vector3(x, y, z).project(camera);

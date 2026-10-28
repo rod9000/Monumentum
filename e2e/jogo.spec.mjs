@@ -120,7 +120,7 @@ test('menu de fases abre, mostra as fases e escolhe uma', async ({ page }) => {
   await abrir(page);
   await page.click('#btn-menu');
   await expect(page.locator('#menu-fases')).toBeVisible();
-  const botoes = page.locator('#grade-fases button');
+  const botoes = page.locator('#grade-fases button:not(.fase-desafio)');   // o 1º botão é o desafio do dia
   expect(await botoes.count()).toBeGreaterThanOrEqual(3);
   await botoes.first().click();
   await expect(page.locator('#menu-fases')).toBeHidden();
